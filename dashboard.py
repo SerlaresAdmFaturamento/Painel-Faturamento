@@ -240,15 +240,14 @@ else:
         elif ranking_clientes == "Top 3 Clientes": df_cliente = df_cliente.tail(3)
         else: df_cliente = df_cliente.tail(10)
 
-        df_cliente['Valor_Formatado'] = df_cliente['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        # Adicionado <b> para deixar o texto em negrito
+        df_cliente['Valor_Formatado'] = df_cliente['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
 
         fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
         
-        # --- AJUSTE: Texto DENTRO ('inside') e Fontes maiores (textfont_size=16) ---
-        fig_cliente.update_traces(textposition='inside', textfont_size=16)
+        # --- AJUSTE: Cor BRANCA adicionada aos valores ---
+        fig_cliente.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
         fig_cliente = aplicar_estilo_grafico(fig_cliente)
-        
-        # --- AJUSTE: Tamanho da letra dos Eixos X e Y maiores (tickfont_size=14) ---
         fig_cliente.update_xaxes(tickfont_size=14)
         fig_cliente.update_yaxes(tickfont_size=14)
         fig_cliente.update_layout(uniformtext_minsize=12, uniformtext_mode='hide')
@@ -263,15 +262,14 @@ else:
         elif ranking_restaurantes == "Top 3 Restaurantes": df_rest = df_rest.tail(3)
         else: df_rest = df_rest.tail(10)
         
-        df_rest['Valor_Formatado'] = df_rest['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        # Adicionado <b> para deixar o texto em negrito
+        df_rest['Valor_Formatado'] = df_rest['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
 
         fig_rest = px.bar(df_rest, x='Valor_Faturamento', y='Restaurante', orientation='h', title='Faturamento por Restaurante', text='Valor_Formatado', color_discrete_sequence=['#e67e22'])
         
-        # --- AJUSTE: Texto DENTRO ('inside') e Fontes maiores (textfont_size=16) ---
-        fig_rest.update_traces(textposition='inside', textfont_size=16)
+        # --- AJUSTE: Cor BRANCA adicionada aos valores ---
+        fig_rest.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
         fig_rest = aplicar_estilo_grafico(fig_rest)
-        
-        # --- AJUSTE: Tamanho da letra dos Eixos X e Y maiores (tickfont_size=14) ---
         fig_rest.update_xaxes(tickfont_size=14)
         fig_rest.update_yaxes(tickfont_size=14)
         fig_rest.update_layout(uniformtext_minsize=12, uniformtext_mode='hide')
