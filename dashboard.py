@@ -13,7 +13,6 @@ st.set_page_config(page_title="Painel de Faturamento", layout="wide", initial_si
 # ----------------------------------------------------
 st.markdown("""
 <style>
-    /* --- AJUSTE: Subindo as informações principais da página --- */
     .block-container {
         padding-top: 2rem !important;
         padding-bottom: 2rem !important;
@@ -130,7 +129,6 @@ except Exception as e:
 # ----------------------------------------------------
 # 2. FILTROS
 # ----------------------------------------------------
-# --- AJUSTE: Imagem removida da barra lateral ---
 st.sidebar.title("Filtros do Painel")
 
 def obter_limites_data(coluna):
@@ -152,10 +150,10 @@ filtro_fechamento = st.sidebar.date_input("Data de Fechamento", value=(min_fech,
 filtro_fat = st.sidebar.date_input("Período de Faturamento", value=(min_fat, max_fat), format="DD/MM/YYYY")
 filtro_venc = st.sidebar.date_input("Período de Vencimento", value=(min_venc, max_venc), format="DD/MM/YYYY")
 
-# --- AJUSTE: Novos filtros de Ranking adicionados ---
+# --- AJUSTE: Filtro de Ranking com 10 como padrão, permitindo reduzir para 5 ou 3 ---
 st.sidebar.markdown("### 🏆 Rankings")
-ranking_clientes = st.sidebar.selectbox("Ranking Clientes", ["Todos os Clientes", "Top 10 Clientes", "Top 5 Clientes", "Top 3 Clientes"])
-ranking_restaurantes = st.sidebar.selectbox("Ranking Restaurantes", ["Todos os Restaurantes", "Top 10 Restaurantes", "Top 5 Restaurantes", "Top 3 Restaurantes"])
+ranking_clientes = st.sidebar.selectbox("Ranking Clientes", ["Top 10 Clientes", "Top 5 Clientes", "Top 3 Clientes"])
+ranking_restaurantes = st.sidebar.selectbox("Ranking Restaurantes", ["Top 10 Restaurantes", "Top 5 Restaurantes", "Top 3 Restaurantes"])
 
 st.sidebar.markdown("### 📋 Categorias")
 def pegar_unicos(coluna):
@@ -228,7 +226,6 @@ else:
             paper_bgcolor='rgba(0,0,0,0)',
             margin=dict(l=20, r=20, t=50, b=20)
         )
-        # --- AJUSTE: Eixos X e Y sem títulos conforme solicitado em todos os gráficos ---
         fig.update_xaxes(title_text='', showgrid=False, zeroline=False)
         fig.update_yaxes(title_text='', showgrid=True, gridcolor='rgba(200, 200, 200, 0.2)', zeroline=False)
         return fig
@@ -236,35 +233,37 @@ else:
     col_graf1, col_graf2 = st.columns(2)
 
     with col_graf1:
-        # --- AJUSTE: Gráfico de Clientes com filtro Top N, Todos e Valores detalhados ---
-        df_cliente = df_filtrado.groupby('Cliente', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
+        df_cliente = df_filtrado.groupby('Cliente', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=False)
         
-        if ranking_clientes == "Top 10 Clientes": df_cliente = df_cliente.tail(10)
-        elif ranking_clientes == "Top 5 Clientes": df_cliente = df_cliente.tail(5)
-        elif ranking_clientes == "Top 3 Clientes": df_cliente = df_cliente.tail(3)
+        # Lógica para exibir 10 por padrão, e permitir filtro para 5 ou 3
+        if ranking_clientes == "Top 10 Clientes": df_cliente = df_cliente.head(10)
+        elif ranking_clientes == "Top 5 Clientes": df_cliente = df_cliente.head(5)
+        elif ranking_clientes == "Top 3 Clientes": df_cliente = df_cliente.head(3)
+        else: df_cliente = df_cliente.head(10)
 
-        # Criando o valor formatado detalhado
         df_cliente['Valor_Formatado'] = df_cliente['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
-        fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
+        fig_cliente = px.bar(df_cliente, x='Cliente', y='Valor_Faturamento', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
         fig_cliente.update_traces(textposition='outside')
         fig_cliente = aplicar_estilo_grafico(fig_cliente)
+        fig_cliente.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
         st.plotly_chart(fig_cliente, use_container_width=True)
 
     with col_graf2:
-        # --- AJUSTE: Gráfico de Restaurantes com filtro Top N, Todos e Valores detalhados ---
-        df_rest = df_filtrado.groupby('Restaurante', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
+        df_rest = df_filtrado.groupby('Restaurante', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=False)
         
-        if ranking_restaurantes == "Top 10 Restaurantes": df_rest = df_rest.tail(10)
-        elif ranking_restaurantes == "Top 5 Restaurantes": df_rest = df_rest.tail(5)
-        elif ranking_restaurantes == "Top 3 Restaurantes": df_rest = df_rest.tail(3)
+        # Lógica para exibir 10 por padrão, e permitir filtro para 5 ou 3
+        if ranking_restaurantes == "Top 10 Restaurantes": df_rest = df_rest.head(10)
+        elif ranking_restaurantes == "Top 5 Restaurantes": df_rest = df_rest.head(5)
+        elif ranking_restaurantes == "Top 3 Restaurantes": df_rest = df_rest.head(3)
+        else: df_rest = df_rest.head(10)
         
-        # Criando o valor formatado detalhado
         df_rest['Valor_Formatado'] = df_rest['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
-        fig_rest = px.bar(df_rest, x='Valor_Faturamento', y='Restaurante', orientation='h', title='Faturamento por Restaurante', text='Valor_Formatado', color_discrete_sequence=['#e67e22'])
+        fig_rest = px.bar(df_rest, x='Restaurante', y='Valor_Faturamento', title='Faturamento por Restaurante', text='Valor_Formatado', color_discrete_sequence=['#e67e22'])
         fig_rest.update_traces(textposition='outside')
         fig_rest = aplicar_estilo_grafico(fig_rest)
+        fig_rest.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
         st.plotly_chart(fig_rest, use_container_width=True)
 
     col_graf3, col_graf4 = st.columns(2)
