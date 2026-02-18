@@ -13,6 +13,12 @@ st.set_page_config(page_title="Painel de Faturamento", layout="wide", initial_si
 # ----------------------------------------------------
 st.markdown("""
 <style>
+    /* --- AJUSTE: Subindo as informações principais da página --- */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+    }
+    
     div[data-testid="stMetric"] {
         background-color: #2c3e50;
         border-radius: 10px;
@@ -124,7 +130,7 @@ except Exception as e:
 # ----------------------------------------------------
 # 2. FILTROS
 # ----------------------------------------------------
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=80)
+# --- AJUSTE: Imagem removida da barra lateral ---
 st.sidebar.title("Filtros do Painel")
 
 def obter_limites_data(coluna):
@@ -145,6 +151,11 @@ st.sidebar.markdown("### 📅 Períodos (Datas)")
 filtro_fechamento = st.sidebar.date_input("Data de Fechamento", value=(min_fech, max_fech), format="DD/MM/YYYY")
 filtro_fat = st.sidebar.date_input("Período de Faturamento", value=(min_fat, max_fat), format="DD/MM/YYYY")
 filtro_venc = st.sidebar.date_input("Período de Vencimento", value=(min_venc, max_venc), format="DD/MM/YYYY")
+
+# --- AJUSTE: Novos filtros de Ranking adicionados ---
+st.sidebar.markdown("### 🏆 Rankings")
+ranking_clientes = st.sidebar.selectbox("Ranking Clientes", ["Todos os Clientes", "Top 10 Clientes", "Top 5 Clientes", "Top 3 Clientes"])
+ranking_restaurantes = st.sidebar.selectbox("Ranking Restaurantes", ["Todos os Restaurantes", "Top 10 Restaurantes", "Top 5 Restaurantes", "Top 3 Restaurantes"])
 
 st.sidebar.markdown("### 📋 Categorias")
 def pegar_unicos(coluna):
@@ -195,11 +206,7 @@ if df_filtrado.empty:
     st.warning("⚠️ Nenhum dado encontrado na planilha ou para os filtros selecionados.")
 else:
     faturamento_total = df_filtrado['Valor_Faturamento'].sum()
-    
-    # --- AJUSTE: Contagem considerando apenas onde o Valor foi preenchido (> 0) ---
     contagem_medicoes = df_filtrado[df_filtrado['Valor_Faturamento'] > 0].shape[0]
-    
-    # --- AJUSTE: Ticket Médio é Faturamento Total dividido pelo Total de Medições ---
     faturamento_medio = (faturamento_total / contagem_medicoes) if contagem_medicoes > 0 else 0.0
 
     col1, col2, col3 = st.columns(3)
@@ -221,22 +228,41 @@ else:
             paper_bgcolor='rgba(0,0,0,0)',
             margin=dict(l=20, r=20, t=50, b=20)
         )
-        fig.update_xaxes(showgrid=False, zeroline=False)
-        fig.update_yaxes(showgrid=True, gridcolor='rgba(200, 200, 200, 0.2)', zeroline=False)
+        # --- AJUSTE: Eixos X e Y sem títulos conforme solicitado em todos os gráficos ---
+        fig.update_xaxes(title_text='', showgrid=False, zeroline=False)
+        fig.update_yaxes(title_text='', showgrid=True, gridcolor='rgba(200, 200, 200, 0.2)', zeroline=False)
         return fig
 
     col_graf1, col_graf2 = st.columns(2)
 
     with col_graf1:
-        df_cliente = df_filtrado.groupby('Cliente', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True).tail(10)
-        fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Top 10 Faturamento por Cliente', text_auto='.2s', color_discrete_sequence=['#3498db'])
+        # --- AJUSTE: Gráfico de Clientes com filtro Top N, Todos e Valores detalhados ---
+        df_cliente = df_filtrado.groupby('Cliente', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
+        
+        if ranking_clientes == "Top 10 Clientes": df_cliente = df_cliente.tail(10)
+        elif ranking_clientes == "Top 5 Clientes": df_cliente = df_cliente.tail(5)
+        elif ranking_clientes == "Top 3 Clientes": df_cliente = df_cliente.tail(3)
+
+        # Criando o valor formatado detalhado
+        df_cliente['Valor_Formatado'] = df_cliente['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+
+        fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
         fig_cliente.update_traces(textposition='outside')
         fig_cliente = aplicar_estilo_grafico(fig_cliente)
         st.plotly_chart(fig_cliente, use_container_width=True)
 
     with col_graf2:
-        df_rest = df_filtrado.groupby('Restaurante', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True).tail(10)
-        fig_rest = px.bar(df_rest, x='Valor_Faturamento', y='Restaurante', orientation='h', title='Top 10 Faturamento por Restaurante', text_auto='.2s', color_discrete_sequence=['#e67e22'])
+        # --- AJUSTE: Gráfico de Restaurantes com filtro Top N, Todos e Valores detalhados ---
+        df_rest = df_filtrado.groupby('Restaurante', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
+        
+        if ranking_restaurantes == "Top 10 Restaurantes": df_rest = df_rest.tail(10)
+        elif ranking_restaurantes == "Top 5 Restaurantes": df_rest = df_rest.tail(5)
+        elif ranking_restaurantes == "Top 3 Restaurantes": df_rest = df_rest.tail(3)
+        
+        # Criando o valor formatado detalhado
+        df_rest['Valor_Formatado'] = df_rest['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+
+        fig_rest = px.bar(df_rest, x='Valor_Faturamento', y='Restaurante', orientation='h', title='Faturamento por Restaurante', text='Valor_Formatado', color_discrete_sequence=['#e67e22'])
         fig_rest.update_traces(textposition='outside')
         fig_rest = aplicar_estilo_grafico(fig_rest)
         st.plotly_chart(fig_rest, use_container_width=True)
