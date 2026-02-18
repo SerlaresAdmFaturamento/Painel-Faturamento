@@ -232,7 +232,7 @@ else:
     col_graf1, col_graf2 = st.columns(2)
 
     with col_graf1:
-        # --- AJUSTE: Gráfico de Clientes voltou para a HORIZONTAL (barras deitadas) ---
+        # --- Gráfico de Clientes ---
         df_cliente = df_filtrado.groupby('Cliente', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
         
         if ranking_clientes == "Top 10 Clientes": df_cliente = df_cliente.tail(10)
@@ -242,15 +242,20 @@ else:
 
         df_cliente['Valor_Formatado'] = df_cliente['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
-        # orientation='h' para deitar as barras. x e y invertidos
         fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
-        fig_cliente.update_traces(textposition='outside')
+        
+        # --- AJUSTE: Texto DENTRO ('inside') e Fontes maiores (textfont_size=16) ---
+        fig_cliente.update_traces(textposition='inside', textfont_size=16)
         fig_cliente = aplicar_estilo_grafico(fig_cliente)
-        fig_cliente.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
+        
+        # --- AJUSTE: Tamanho da letra dos Eixos X e Y maiores (tickfont_size=14) ---
+        fig_cliente.update_xaxes(tickfont_size=14)
+        fig_cliente.update_yaxes(tickfont_size=14)
+        fig_cliente.update_layout(uniformtext_minsize=12, uniformtext_mode='hide')
         st.plotly_chart(fig_cliente, use_container_width=True)
 
     with col_graf2:
-        # --- AJUSTE: Gráfico de Restaurantes voltou para a HORIZONTAL (barras deitadas) ---
+        # --- Gráfico de Restaurantes ---
         df_rest = df_filtrado.groupby('Restaurante', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
         
         if ranking_restaurantes == "Top 10 Restaurantes": df_rest = df_rest.tail(10)
@@ -261,9 +266,15 @@ else:
         df_rest['Valor_Formatado'] = df_rest['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
         fig_rest = px.bar(df_rest, x='Valor_Faturamento', y='Restaurante', orientation='h', title='Faturamento por Restaurante', text='Valor_Formatado', color_discrete_sequence=['#e67e22'])
-        fig_rest.update_traces(textposition='outside')
+        
+        # --- AJUSTE: Texto DENTRO ('inside') e Fontes maiores (textfont_size=16) ---
+        fig_rest.update_traces(textposition='inside', textfont_size=16)
         fig_rest = aplicar_estilo_grafico(fig_rest)
-        fig_rest.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
+        
+        # --- AJUSTE: Tamanho da letra dos Eixos X e Y maiores (tickfont_size=14) ---
+        fig_rest.update_xaxes(tickfont_size=14)
+        fig_rest.update_yaxes(tickfont_size=14)
+        fig_rest.update_layout(uniformtext_minsize=12, uniformtext_mode='hide')
         st.plotly_chart(fig_rest, use_container_width=True)
 
     col_graf3, col_graf4 = st.columns(2)
