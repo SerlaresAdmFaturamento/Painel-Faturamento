@@ -87,11 +87,12 @@ def carregar_dados():
     colunas_texto = ['Restaurante', 'Cliente', 'Validação_Cliente', 'Medição_Encerrada', 'Carteira']
     for col in colunas_texto:
         if col in df.columns:
-            df[col] = df[col].fillna('Não Informado').astype(str)
+            df[col] = df[col].fillna('Não Informado').astype(str).str.strip() # .str.strip() remove espaços extras
             
-    # --- AJUSTE SOLICITADO: Trocar "Depósito em Conta" por "Transferência Bancária" ---
+    # --- AJUSTE ROBUSTO: Troca todas as variações de "Depósito em Conta" ---
     if 'Carteira' in df.columns:
-        df['Carteira'] = df['Carteira'].replace('Depósito em Conta', 'Transferência Bancária')
+        # Converte para string, remove espaços e substitui
+        df['Carteira'] = df['Carteira'].replace(['Depósito em Conta', 'Deposito em Conta', 'DEPÓSITO EM CONTA'], 'Transferência Bancária')
 
     def classificar_validacao(row):
         carteira = str(row.get('Carteira', '')).strip()
@@ -268,7 +269,10 @@ else:
             fig_tempo = px.area(df_tempo, x='Mes_Ano_Faturamento', y='Valor_Faturamento', title='Evolução por Mês/Ano', markers=True, text='Valor_Texto', color_discrete_sequence=['#2ecc71'])
             fig_tempo.update_traces(line_shape='spline', textposition='top center', textfont=dict(color='white', size=12))
             fig_tempo = aplicar_estilo_grafico(fig_tempo)
-            fig_tempo.update_layout(yaxis=dict(range=[0, df_tempo['Valor_Faturamento'].max() * 1.2]))
+            # Define o limite do eixo Y para ser 20% maior que o máximo para caber o texto
+            if not df_tempo.empty:
+                max_val = df_tempo['Valor_Faturamento'].max()
+                fig_tempo.update_layout(yaxis=dict(range=[0, max_val * 1.2]))
             st.plotly_chart(fig_tempo, use_container_width=True)
 
     with col_graf4:
