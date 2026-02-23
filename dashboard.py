@@ -232,71 +232,50 @@ else:
     col_graf1, col_graf2 = st.columns(2)
 
     with col_graf1:
-        # --- Gráfico de Clientes ---
         df_cliente = df_filtrado.groupby('Cliente', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
-        
         if ranking_clientes == "Top 10 Clientes": df_cliente = df_cliente.tail(10)
         elif ranking_clientes == "Top 5 Clientes": df_cliente = df_cliente.tail(5)
         elif ranking_clientes == "Top 3 Clientes": df_cliente = df_cliente.tail(3)
-        else: df_cliente = df_cliente.tail(10)
-
-        # Adicionado <b> para deixar o texto em negrito
-        df_cliente['Valor_Formatado'] = df_cliente['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
-
-        fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
         
-        # --- AJUSTE: Cor BRANCA adicionada aos valores ---
+        df_cliente['Valor_Formatado'] = df_cliente['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
+        fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
         fig_cliente.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
         fig_cliente = aplicar_estilo_grafico(fig_cliente)
-        fig_cliente.update_xaxes(tickfont_size=14)
-        fig_cliente.update_yaxes(tickfont_size=14)
-        fig_cliente.update_layout(uniformtext_minsize=12, uniformtext_mode='hide')
         st.plotly_chart(fig_cliente, use_container_width=True)
 
     with col_graf2:
-        # --- Gráfico de Restaurantes ---
         df_rest = df_filtrado.groupby('Restaurante', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
-        
         if ranking_restaurantes == "Top 10 Restaurantes": df_rest = df_rest.tail(10)
         elif ranking_restaurantes == "Top 5 Restaurantes": df_rest = df_rest.tail(5)
         elif ranking_restaurantes == "Top 3 Restaurantes": df_rest = df_rest.tail(3)
-        else: df_rest = df_rest.tail(10)
         
-        # Adicionado <b> para deixar o texto em negrito
         df_rest['Valor_Formatado'] = df_rest['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
-
         fig_rest = px.bar(df_rest, x='Valor_Faturamento', y='Restaurante', orientation='h', title='Faturamento por Restaurante', text='Valor_Formatado', color_discrete_sequence=['#e67e22'])
-        
-        # --- AJUSTE: Cor BRANCA adicionada aos valores ---
         fig_rest.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
         fig_rest = aplicar_estilo_grafico(fig_rest)
-        fig_rest.update_xaxes(tickfont_size=14)
-        fig_rest.update_yaxes(tickfont_size=14)
-        fig_rest.update_layout(uniformtext_minsize=12, uniformtext_mode='hide')
         st.plotly_chart(fig_rest, use_container_width=True)
 
     col_graf3, col_graf4 = st.columns(2)
 
-with col_graf3:
+    with col_graf3:
         if 'Mes_Ano_Faturamento' in df_filtrado.columns:
-            df_tempo = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data']
+            df_tempo = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data'].copy()
             df_tempo = df_tempo.groupby('Mes_Ano_Faturamento', as_index=False)['Valor_Faturamento'].sum()
             df_tempo['Data_Ordenacao'] = pd.to_datetime(df_tempo['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
             df_tempo = df_tempo.sort_values('Data_Ordenacao')
             
-            # Formata os valores para exibição no gráfico
+            # Valor formatado para o rótulo branco no gráfico
             df_tempo['Valor_Formatado'] = df_tempo['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             
-            # Adicionado o parâmetro text='Valor_Formatado' e configuração do texto (textposition, textfont)
             fig_tempo = px.area(df_tempo, x='Mes_Ano_Faturamento', y='Valor_Faturamento', title='Evolução por Mês/Ano', markers=True, text='Valor_Formatado', color_discrete_sequence=['#2ecc71'])
             fig_tempo.update_traces(line_shape='spline', textposition='top center', textfont=dict(color='white', size=12))
             fig_tempo = aplicar_estilo_grafico(fig_tempo)
-            fig_tempo.update_yaxes(cliponaxis=False) # Evita cortar o texto no topo
+            fig_tempo.update_yaxes(cliponaxis=False)
             st.plotly_chart(fig_tempo, use_container_width=True)
 
     with col_graf4:
         if 'Mes_Ano_Faturamento' in df_filtrado.columns and 'Carteira' in df_filtrado.columns:
-            df_carteira = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data']
+            df_carteira = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data'].copy()
             df_carteira = df_carteira.groupby(['Mes_Ano_Faturamento', 'Carteira'], as_index=False)['Valor_Faturamento'].sum()
             df_carteira['Data_Ordenacao'] = pd.to_datetime(df_carteira['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
             df_carteira = df_carteira.sort_values('Data_Ordenacao')
