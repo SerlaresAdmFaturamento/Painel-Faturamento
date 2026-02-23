@@ -279,7 +279,7 @@ else:
 
     with col_graf3:
         if 'Mes_Ano_Faturamento' in df_filtrado.columns:
-            df_tempo = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data']
+            df_tempo = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data'].copy()
             df_tempo = df_tempo.groupby('Mes_Ano_Faturamento', as_index=False)['Valor_Faturamento'].sum()
             df_tempo['Data_Ordenacao'] = pd.to_datetime(df_tempo['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
             df_tempo = df_tempo.sort_values('Data_Ordenacao')
