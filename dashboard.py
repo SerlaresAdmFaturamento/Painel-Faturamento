@@ -91,7 +91,6 @@ def carregar_dados():
             
     def classificar_validacao(row):
         carteira = str(row.get('Carteira', '')).strip()
-        
         if carteira == 'Sem Funcionamento':
             return '🚫 Sem Funcionamento'
             
@@ -117,7 +116,6 @@ def carregar_dados():
             return '⚠️ Pendente'
             
     df['Validação'] = df.apply(classificar_validacao, axis=1)
-            
     return df
 
 try:
@@ -145,7 +143,6 @@ col_venc = 'Data _Vencimento' if 'Data _Vencimento' in df_original.columns else 
 min_venc, max_venc = obter_limites_data(col_venc)
 
 st.sidebar.markdown("### 📅 Períodos (Datas)")
-
 filtro_fechamento = st.sidebar.date_input("Data de Fechamento", value=(min_fech, max_fech), format="DD/MM/YYYY")
 filtro_fat = st.sidebar.date_input("Período de Faturamento", value=(min_fat, max_fat), format="DD/MM/YYYY")
 filtro_venc = st.sidebar.date_input("Período de Vencimento", value=(min_venc, max_venc), format="DD/MM/YYYY")
@@ -166,7 +163,6 @@ filtro_validacao = st.sidebar.multiselect("✅ Validação", pegar_unicos('Valid
 filtro_encerrado = st.sidebar.multiselect("🔒 Encerrado", pegar_unicos('Medição_Encerrada'))
 filtro_carteira = st.sidebar.multiselect("💼 Carteira", pegar_unicos('Carteira'))
 
-# Aplicando os filtros no Dataframe
 df_filtrado = df_original.copy()
 
 if len(filtro_fechamento) == 2:
@@ -232,85 +228,51 @@ else:
     col_graf1, col_graf2 = st.columns(2)
 
     with col_graf1:
-        # --- Gráfico de Clientes ---
         df_cliente = df_filtrado.groupby('Cliente', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
-        
         if ranking_clientes == "Top 10 Clientes": df_cliente = df_cliente.tail(10)
         elif ranking_clientes == "Top 5 Clientes": df_cliente = df_cliente.tail(5)
         elif ranking_clientes == "Top 3 Clientes": df_cliente = df_cliente.tail(3)
         else: df_cliente = df_cliente.tail(10)
-
-        # Adicionado <b> para deixar o texto em negrito
         df_cliente['Valor_Formatado'] = df_cliente['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
-
         fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
-        
-        # --- AJUSTE: Cor BRANCA adicionada aos valores ---
         fig_cliente.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
         fig_cliente = aplicar_estilo_grafico(fig_cliente)
-        fig_cliente.update_xaxes(tickfont_size=14)
-        fig_cliente.update_yaxes(tickfont_size=14)
-        fig_cliente.update_layout(uniformtext_minsize=12, uniformtext_mode='hide')
         st.plotly_chart(fig_cliente, use_container_width=True)
 
     with col_graf2:
-        # --- Gráfico de Restaurantes ---
         df_rest = df_filtrado.groupby('Restaurante', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
-        
         if ranking_restaurantes == "Top 10 Restaurantes": df_rest = df_rest.tail(10)
         elif ranking_restaurantes == "Top 5 Restaurantes": df_rest = df_rest.tail(5)
         elif ranking_restaurantes == "Top 3 Restaurantes": df_rest = df_rest.tail(3)
         else: df_rest = df_rest.tail(10)
-        
-        # Adicionado <b> para deixar o texto em negrito
         df_rest['Valor_Formatado'] = df_rest['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
-
         fig_rest = px.bar(df_rest, x='Valor_Faturamento', y='Restaurante', orientation='h', title='Faturamento por Restaurante', text='Valor_Formatado', color_discrete_sequence=['#e67e22'])
-        
-        # --- AJUSTE: Cor BRANCA adicionada aos valores ---
         fig_rest.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
         fig_rest = aplicar_estilo_grafico(fig_rest)
-        fig_rest.update_xaxes(tickfont_size=14)
-        fig_rest.update_yaxes(tickfont_size=14)
-        fig_rest.update_layout(uniformtext_minsize=12, uniformtext_mode='hide')
         st.plotly_chart(fig_rest, use_container_width=True)
 
     col_graf3, col_graf4 = st.columns(2)
 
-with col_graf3:
+    with col_graf3:
         if 'Mes_Ano_Faturamento' in df_filtrado.columns:
             df_tempo = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data'].copy()
             df_tempo = df_tempo.groupby('Mes_Ano_Faturamento', as_index=False)['Valor_Faturamento'].sum()
             df_tempo['Data_Ordenacao'] = pd.to_datetime(df_tempo['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
             df_tempo = df_tempo.sort_values('Data_Ordenacao')
-            
-            # Formatação do valor para o rótulo
             df_tempo['Valor_Texto'] = df_tempo['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             
-            # Criação do gráfico
             fig_tempo = px.area(df_tempo, x='Mes_Ano_Faturamento', y='Valor_Faturamento', title='Evolução por Mês/Ano', markers=True, text='Valor_Texto', color_discrete_sequence=['#2ecc71'])
-            
-            # Ajuste de Estilo e Rótulos (Texto em Branco)
-            fig_tempo.update_traces(
-                line_shape='spline', 
-                textposition='top center', 
-                textfont=dict(color='white', size=11)
-            )
-            
+            fig_tempo.update_traces(line_shape='spline', textposition='top center', textfont=dict(color='white', size=12))
             fig_tempo = aplicar_estilo_grafico(fig_tempo)
-            
-            # Ajuste do eixo Y para não cortar o texto, usando uma sintaxe mais compatível
-            fig_tempo.update_layout(yaxis_cliponaxis=False)
-            
+            fig_tempo.update_layout(yaxis=dict(range=[0, df_tempo['Valor_Faturamento'].max() * 1.2])) # Margem para o texto não cortar
             st.plotly_chart(fig_tempo, use_container_width=True)
 
     with col_graf4:
         if 'Mes_Ano_Faturamento' in df_filtrado.columns and 'Carteira' in df_filtrado.columns:
-            df_carteira = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data']
+            df_carteira = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data'].copy()
             df_carteira = df_carteira.groupby(['Mes_Ano_Faturamento', 'Carteira'], as_index=False)['Valor_Faturamento'].sum()
             df_carteira['Data_Ordenacao'] = pd.to_datetime(df_carteira['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
             df_carteira = df_carteira.sort_values('Data_Ordenacao')
-            
             fig_carteira = px.line(df_carteira, x='Mes_Ano_Faturamento', y='Valor_Faturamento', color='Carteira', title='Evolução por Carteira', markers=True)
             fig_carteira.update_traces(line_shape='spline', line=dict(width=3))
             fig_carteira = aplicar_estilo_grafico(fig_carteira)
@@ -321,19 +283,17 @@ with col_graf3:
     # ----------------------------------------------------
     st.markdown("### 📋 Tabela de Dados")
     df_exibicao = df_filtrado.copy()
-
     cols = list(df_exibicao.columns)
-    if 'Tempo' in cols: cols.remove('Tempo')
-    if 'Fat x Venc' in cols: cols.remove('Fat x Venc')
-    if 'Validação' in cols: cols.remove('Validação')
+    for c in ['Tempo', 'Fat x Venc', 'Validação']:
+        if c in cols: cols.remove(c)
     
     if 'Data_Faturamento' in cols:
         idx_fat = cols.index('Data_Faturamento')
         if 'Tempo' in df_filtrado.columns:
-            cols.insert(idx_fat, 'Tempo')      
-            idx_fat += 1                       
+            cols.insert(idx_fat, 'Tempo')
+            idx_fat += 1
         if 'Fat x Venc' in df_filtrado.columns:
-            cols.insert(idx_fat + 1, 'Fat x Venc') 
+            cols.insert(idx_fat + 1, 'Fat x Venc')
 
     if 'Fim_Medição' in cols:
         idx_fim = cols.index('Fim_Medição')
@@ -341,9 +301,7 @@ with col_graf3:
             cols.insert(idx_fim + 1, 'Validação')
 
     df_exibicao = df_exibicao[cols]
-
     colunas_data_exibir = ['Fim_Medição', 'Data_Faturamento', col_venc]
-
     for col in colunas_data_exibir:
         if col in df_exibicao.columns:
             df_exibicao[col] = df_exibicao[col].dt.strftime('%d/%m/%Y').fillna('-')
@@ -351,10 +309,8 @@ with col_graf3:
     if 'Valor_Faturamento' in df_exibicao.columns:
         df_exibicao['Valor_Faturamento'] = df_exibicao['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
-    if 'Tempo' in df_exibicao.columns:
-        df_exibicao['Tempo'] = df_exibicao['Tempo'].apply(lambda x: f"{int(x)}" if pd.notna(x) else "-")
-    
-    if 'Fat x Venc' in df_exibicao.columns:
-        df_exibicao['Fat x Venc'] = df_exibicao['Fat x Venc'].apply(lambda x: f"{int(x)}" if pd.notna(x) else "-")
+    for c in ['Tempo', 'Fat x Venc']:
+        if c in df_exibicao.columns:
+            df_exibicao[c] = df_exibicao[c].apply(lambda x: f"{int(x)}" if pd.notna(x) and str(x).replace('.0','').isdigit() else "-")
 
     st.dataframe(df_exibicao, use_container_width=True, height=800, hide_index=True)
