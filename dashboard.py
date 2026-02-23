@@ -283,10 +283,13 @@ else:
             df_tempo = df_tempo.groupby('Mes_Ano_Faturamento', as_index=False)['Valor_Faturamento'].sum()
             df_tempo['Data_Ordenacao'] = pd.to_datetime(df_tempo['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
             df_tempo = df_tempo.sort_values('Data_Ordenacao')
+
+            df_tempo['Valor_Texto'] = df_tempo['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             
-            fig_tempo = px.area(df_tempo, x='Mes_Ano_Faturamento', y='Valor_Faturamento', title='Evolução por Mês/Ano', markers=True, color_discrete_sequence=['#2ecc71'])
-            fig_tempo.update_traces(line_shape='spline')
+            fig_tempo = px.area(df_tempo, x='Mes_Ano_Faturamento', y='Valor_Faturamento', title='Evolução por Mês/Ano', markers=True, text='Valor_Texto', color_discrete_sequence=['#2ecc71'])
+            fig_tempo.update_traces(line_shape='spline', textposition='top center', textfont=dict(color='white', size=11))
             fig_tempo = aplicar_estilo_grafico(fig_tempo)
+            fig_tempo.update_yaxes(cliponaxis=False)
             st.plotly_chart(fig_tempo, use_container_width=True)
 
     with col_graf4:
