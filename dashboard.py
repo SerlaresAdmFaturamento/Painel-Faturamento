@@ -287,17 +287,11 @@ with col_graf3:
             # Formata os valores para exibição no gráfico
             df_tempo['Valor_Formatado'] = df_tempo['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             
-            # Adicionado o parâmetro text='Valor_Formatado'
+            # Adicionado o parâmetro text='Valor_Formatado' e configuração do texto (textposition, textfont)
             fig_tempo = px.area(df_tempo, x='Mes_Ano_Faturamento', y='Valor_Faturamento', title='Evolução por Mês/Ano', markers=True, text='Valor_Formatado', color_discrete_sequence=['#2ecc71'])
-            
-            # Ajuste de linha, e configuração da posição e cor do texto (branco)
             fig_tempo.update_traces(line_shape='spline', textposition='top center', textfont=dict(color='white', size=12))
-            
             fig_tempo = aplicar_estilo_grafico(fig_tempo)
-            
-            # Expande um pouco a margem superior (opcional) para o texto não cortar no topo
-            fig_tempo.update_yaxes(cliponaxis=False) 
-            
+            fig_tempo.update_yaxes(cliponaxis=False) # Evita cortar o texto no topo
             st.plotly_chart(fig_tempo, use_container_width=True)
 
     with col_graf4:
