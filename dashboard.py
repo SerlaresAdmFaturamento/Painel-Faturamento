@@ -89,6 +89,10 @@ def carregar_dados():
         if col in df.columns:
             df[col] = df[col].fillna('Não Informado').astype(str)
             
+    # --- AJUSTE SOLICITADO: Trocar "Depósito em Conta" por "Transferência Bancária" ---
+    if 'Carteira' in df.columns:
+        df['Carteira'] = df['Carteira'].replace('Depósito em Conta', 'Transferência Bancária')
+
     def classificar_validacao(row):
         carteira = str(row.get('Carteira', '')).strip()
         if carteira == 'Sem Funcionamento':
@@ -264,7 +268,7 @@ else:
             fig_tempo = px.area(df_tempo, x='Mes_Ano_Faturamento', y='Valor_Faturamento', title='Evolução por Mês/Ano', markers=True, text='Valor_Texto', color_discrete_sequence=['#2ecc71'])
             fig_tempo.update_traces(line_shape='spline', textposition='top center', textfont=dict(color='white', size=12))
             fig_tempo = aplicar_estilo_grafico(fig_tempo)
-            fig_tempo.update_layout(yaxis=dict(range=[0, df_tempo['Valor_Faturamento'].max() * 1.2])) # Margem para o texto não cortar
+            fig_tempo.update_layout(yaxis=dict(range=[0, df_tempo['Valor_Faturamento'].max() * 1.2]))
             st.plotly_chart(fig_tempo, use_container_width=True)
 
     with col_graf4:
