@@ -379,22 +379,19 @@ else:
 
 with col_graf4:
         if 'Mes_Ano_Faturamento' in df_filtrado.columns and 'Carteira' in df_filtrado.columns:
-            # 1. Filtra e remove datas vazias
             df_carteira = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data'].copy()
             
-            # 2. Cria uma coluna de data real para ORDENAÇÃO correta
-            df_carteira['Data_Para_Sort'] = pd.to_datetime(df_carteira['Mes_Ano_Faturamento'], format='%m/%Y')
+            # Agrupa os dados
+            df_carteira = df_carteira.groupby(['Mes_Ano_Faturamento', 'Carteira'], as_index=False)['Valor_Faturamento'].sum()
             
-            # 3. Agrupa e ordena pela data real
-            df_carteira = df_carteira.groupby(['Mes_Ano_Faturamento', 'Data_Para_Sort', 'Carteira'], as_index=False)['Valor_Faturamento'].sum()
-            df_carteira = df_carteira.sort_values('Data_Para_Sort')
+            # Cria a data de ordenação e ORDENA o dataframe por ela
+            df_carteira['Data_Ordenacao'] = pd.to_datetime(df_carteira['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
+            df_carteira = df_carteira.sort_values('Data_Ordenacao')
             
-            # 4. Formata o texto que aparecerá no gráfico
-            df_carteira['Texto_Grafico'] = df_carteira['Valor_Faturamento'].apply(
-                lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-            )
+            # Formata o texto do valor
+            df_carteira['Valor_Texto'] = df_carteira['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             
-            # 5. Gera o gráfico (O Plotly respeitará a ordem do DataFrame ordenado acima)
+            # Gera o gráfico com category_orders para travar a cronologia
             fig_carteira = px.line(
                 df_carteira, 
                 x='Mes_Ano_Faturamento', 
@@ -402,11 +399,11 @@ with col_graf4:
                 color='Carteira', 
                 title='Evolução por Carteira', 
                 markers=True, 
-                text='Texto_Grafico',
-                category_orders={"Mes_Ano_Faturamento": df_carteira['Mes_Ano_Faturamento'].unique()} # Força a ordem exata
+                text='Valor_Texto',
+                category_orders={"Mes_Ano_Faturamento": df_carteira['Mes_Ano_Faturamento'].unique()}
             )
             
-            fig_carteira.update_traces(textposition='top center', line_shape='spline')
+            fig_carteira.update_traces(textposition="top center", line_shape='spline', line=dict(width=3))
             st.plotly_chart(aplicar_estilo_grafico(fig_carteira), use_container_width=True)
 
 # ----------------------------------------------------
