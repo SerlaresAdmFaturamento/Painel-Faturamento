@@ -389,7 +389,7 @@ else:
             fig_carteira = aplicar_estilo_grafico(fig_carteira)
             st.plotly_chart(aplicar_estilo_grafico(fig_carteira), use_container_width=True)
 
-    # ----------------------------------------------------
+# ----------------------------------------------------
     # 5. TABELA DE DETALHAMENTO (AJUSTADA PARA ORDENAÇÃO)
     # ----------------------------------------------------
     st.markdown("### 📋 Tabela de Dados")
@@ -421,30 +421,21 @@ else:
 
     df_exibicao = df_exibicao[cols]
 
-    # --- RESOLUÇÃO DO FORMATO DE MOEDA BR ---
+    # --- RESOLUÇÃO DO FORMATO DE MOEDA BR (SÓ ISSO) ---
     if 'Valor_Faturamento' in df_exibicao.columns:
         df_exibicao['Valor_Faturamento'] = df_exibicao['Valor_Faturamento'].apply(
             lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         )
 
-    # --- NOVO BLOCO: Configuração de Exibição Dinâmica ---
-    # Em vez de converter para String aqui, usamos o column_config do Streamlit
-    # Isso garante que a ordenação funcione clicando no cabeçalho.
-    
-    configuracao_colunas = {
-        'Valor_Faturamento': st.column_config.NumberColumn("Valor_Faturamento", format="R$ %.2f", locale="pt-BR"),
-        'Fim_Medição': st.column_config.DateColumn("Fim_Medição", format="DD/MM/YYYY"),
-        'Data_Faturamento': st.column_config.DateColumn("Data_Faturamento", format="DD/MM/YYYY"),
-        col_venc: st.column_config.DateColumn(col_venc, format="DD/MM/YYYY"),
-        'Inicio_Medição': st.column_config.DateColumn("Inicio_Medição", format="DD/MM/YYYY"),
-        'Tempo': st.column_config.NumberColumn("Tempo", format="%d"),
-        'Fat x Venc': st.column_config.NumberColumn("Fat x Venc", format="%d")
-    }
+    # --- FORMATO DE DATA BR ---
+    colunas_data_exibir = ['Fim_Medição', 'Data_Faturamento', col_venc, 'Inicio_Medição']
+    for col in colunas_data_exibir:
+        if col in df_exibicao.columns:
+            df_exibicao[col] = df_exibicao[col].dt.strftime('%d/%m/%Y').fillna('-')
 
-    # Exibe o dataframe usando as configurações de formato sem quebrar a ordenação nativa
+    # Exibe o dataframe diretamente (sem column_config para não dar erro de tipo)
     st.dataframe(
         df_exibicao, 
-        column_config=configuracao_colunas,
         use_container_width=True, 
         height=800, 
         hide_index=True
