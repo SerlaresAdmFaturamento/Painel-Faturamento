@@ -316,7 +316,7 @@ else:
     with col3:
         st.metric("📋 Total de Medições", contagem_medicoes)
     with col4:
-    st.metric("👥 Total de Clientes", total_clientes)
+        st.metric("👥 Total de Clientes", total_clientes)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
