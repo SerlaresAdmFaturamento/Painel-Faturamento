@@ -433,15 +433,13 @@ else:
         if col in df_exibicao.columns:
             df_exibicao[col] = df_exibicao[col].dt.strftime('%d/%m/%Y').fillna('-')
 
-    # --- CENTRALIZAR TODAS AS COLUNAS (VERSÃO BLINDADA) ---
-    # Usamos o Column genérico apenas para alinhamento, garantindo que o nome da coluna seja tratado como string
-    config_centralizada = {str(col): st.column_config.Column(alignment="center") for col in df_exibicao.columns}
+    # --- CENTRALIZAR USANDO PANDAS STYLER (VERSÃO ANTIGA) ---
+    # Isso aplica o alinhamento central em todas as células da tabela
+    df_estilizado = df_exibicao.style.set_properties(**{'text-align': 'center'})
 
-    # Exibe a tabela
+    # Exibe a tabela estilizada
     st.dataframe(
-        df_exibicao, 
-        column_config=config_centralizada,
+        df_estilizado, 
         use_container_width=True, 
-        height=800, 
-        hide_index=True
+        height=800
     )
