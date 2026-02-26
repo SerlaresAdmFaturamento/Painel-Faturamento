@@ -4,6 +4,15 @@ import plotly.express as px
 import datetime
 import re
 import calendar
+import os
+
+# ----------------------------------------------------
+# FORÇAR MODO ESCURO NATIVO 
+# ----------------------------------------------------
+if not os.path.exists('.streamlit'):
+    os.makedirs('.streamlit')
+with open('.streamlit/config.toml', 'w', encoding='utf-8') as f:
+    f.write('[theme]\nbase="dark"\n')
 
 # ----------------------------------------------------
 # CONFIGURAÇÃO DA PÁGINA
