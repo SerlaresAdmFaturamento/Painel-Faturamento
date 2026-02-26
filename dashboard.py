@@ -375,15 +375,17 @@ else:
             st.plotly_chart(fig_carteira, use_container_width=True)
 
     # ----------------------------------------------------
-    # 5. TABELA DE DETALHAMENTO
+    # 5. TABELA DE DETALHAMENTO (AJUSTADA PARA ORDENAÇÃO)
     # ----------------------------------------------------
     st.markdown("### 📋 Tabela de Dados")
     df_exibicao = df_filtrado.copy()
     cols = list(df_exibicao.columns)
     
+    # Remove colunas que serão reinseridas em posições específicas
     for c in ['Tempo', 'Fat x Venc', 'Validação', 'Validação do Vencimento']:
         if c in cols: cols.remove(c)
     
+    # Reposicionamento de colunas conforme lógica original
     if 'Data_Faturamento' in cols:
         idx_fat = cols.index('Data_Faturamento')
         if 'Tempo' in df_filtrado.columns:
@@ -403,16 +405,26 @@ else:
             cols.insert(idx_venc + 1, 'Validação do Vencimento')
 
     df_exibicao = df_exibicao[cols]
-    colunas_data_exibir = ['Fim_Medição', 'Data_Faturamento', col_venc, 'Inicio_Medição']
-    for col in colunas_data_exibir:
-        if col in df_exibicao.columns:
-            df_exibicao[col] = df_exibicao[col].dt.strftime('%d/%m/%Y').fillna('-')
 
-    if 'Valor_Faturamento' in df_exibicao.columns:
-        df_exibicao['Valor_Faturamento'] = df_exibicao['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    # --- NOVO BLOCO: Configuração de Exibição Dinâmica ---
+    # Em vez de converter para String aqui, usamos o column_config do Streamlit
+    # Isso garante que a ordenação funcione clicando no cabeçalho.
+    
+    configuracao_colunas = {
+        'Valor_Faturamento': st.column_config.NumberColumn("Valor_Faturamento", format="R$ %.2f"),
+        'Fim_Medição': st.column_config.DateColumn("Fim_Medição", format="DD/MM/YYYY"),
+        'Data_Faturamento': st.column_config.DateColumn("Data_Faturamento", format="DD/MM/YYYY"),
+        col_venc: st.column_config.DateColumn(col_venc, format="DD/MM/YYYY"),
+        'Inicio_Medição': st.column_config.DateColumn("Inicio_Medição", format="DD/MM/YYYY"),
+        'Tempo': st.column_config.NumberColumn("Tempo", format="%d"),
+        'Fat x Venc': st.column_config.NumberColumn("Fat x Venc", format="%d")
+    }
 
-    for c in ['Tempo', 'Fat x Venc']:
-        if c in df_exibicao.columns:
-            df_exibicao[c] = df_exibicao[c].apply(lambda x: f"{int(x)}" if pd.notna(x) and str(x).replace('.0','').isdigit() else "-")
-
-    st.dataframe(df_exibicao, use_container_width=True, height=800, hide_index=True)
+    # Exibe o dataframe usando as configurações de formato sem quebrar a ordenação nativa
+    st.dataframe(
+        df_exibicao, 
+        column_config=configuracao_colunas,
+        use_container_width=True, 
+        height=800, 
+        hide_index=True
+    )
