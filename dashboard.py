@@ -260,6 +260,7 @@ def pegar_unicos(coluna):
 
 filtro_restaurante = st.sidebar.multiselect("🍽️ Restaurante", pegar_unicos('Restaurante'))
 filtro_cliente = st.sidebar.multiselect("🏢 Cliente", pegar_unicos('Cliente'))
+filtro_val_cliente = st.sidebar.multiselect("🤝 Validação Cliente", pegar_unicos('Validação_Cliente'))
 filtro_validacao = st.sidebar.multiselect("✅ Validação Geral", pegar_unicos('Validação'))
 filtro_val_venc = st.sidebar.multiselect("📆 Validação de Vencimento", pegar_unicos('Validação do Vencimento'))
 filtro_encerrado = st.sidebar.multiselect("🔒 Encerrado", pegar_unicos('Medição_Encerrada'))
@@ -287,6 +288,7 @@ if len(filtro_venc) == 2:
 
 if filtro_restaurante: df_filtrado = df_filtrado[df_filtrado['Restaurante'].isin(filtro_restaurante)]
 if filtro_cliente: df_filtrado = df_filtrado[df_filtrado['Cliente'].isin(filtro_cliente)]
+if filtro_val_cliente: df_filtrado = df_filtrado[df_filtrado['Validação_Cliente'].isin(filtro_val_cliente)]
 if filtro_validacao: df_filtrado = df_filtrado[df_filtrado['Validação'].isin(filtro_validacao)]
 if filtro_val_venc: df_filtrado = df_filtrado[df_filtrado['Validação do Vencimento'].isin(filtro_val_venc)]
 if filtro_encerrado: df_filtrado = df_filtrado[df_filtrado['Medição_Encerrada'].isin(filtro_encerrado)]
