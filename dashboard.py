@@ -433,14 +433,14 @@ else:
         if col in df_exibicao.columns:
             df_exibicao[col] = df_exibicao[col].dt.strftime('%d/%m/%Y').fillna('-')
 
-    # --- CENTRALIZAR TODAS AS COLUNAS ---
-    # Criamos uma configuração que aplica "center" para cada coluna da tabela
-    config_centralizada = {col: st.column_config.Column(alignment="center") for col in df_exibicao.columns}
+    # --- CENTRALIZAR TODAS AS COLUNAS (VERSÃO BLINDADA) ---
+    # Usamos o Column genérico apenas para alinhamento, garantindo que o nome da coluna seja tratado como string
+    config_centralizada = {str(col): st.column_config.Column(alignment="center") for col in df_exibicao.columns}
 
-    # Exibe a tabela com as colunas centralizadas
+    # Exibe a tabela
     st.dataframe(
         df_exibicao, 
-        column_config=config_centralizada, # Aplica a centralização aqui
+        column_config=config_centralizada,
         use_container_width=True, 
         height=800, 
         hide_index=True
