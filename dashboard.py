@@ -421,21 +421,26 @@ else:
 
     df_exibicao = df_exibicao[cols]
 
-    # --- RESOLUÇÃO DO FORMATO DE MOEDA BR (SÓ ISSO) ---
+# --- RESOLUÇÃO DO FORMATO DE MOEDA BR ---
     if 'Valor_Faturamento' in df_exibicao.columns:
         df_exibicao['Valor_Faturamento'] = df_exibicao['Valor_Faturamento'].apply(
             lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         )
 
-    # --- FORMATO DE DATA BR ---
+    # --- RESOLUÇÃO DO FORMATO DE DATA BR ---
     colunas_data_exibir = ['Fim_Medição', 'Data_Faturamento', col_venc, 'Inicio_Medição']
     for col in colunas_data_exibir:
         if col in df_exibicao.columns:
             df_exibicao[col] = df_exibicao[col].dt.strftime('%d/%m/%Y').fillna('-')
 
-    # Exibe o dataframe diretamente (sem column_config para não dar erro de tipo)
+    # --- CENTRALIZAR TODAS AS COLUNAS ---
+    # Criamos uma configuração que aplica "center" para cada coluna da tabela
+    config_centralizada = {col: st.column_config.Column(alignment="center") for col in df_exibicao.columns}
+
+    # Exibe a tabela com as colunas centralizadas
     st.dataframe(
         df_exibicao, 
+        column_config=config_centralizada, # Aplica a centralização aqui
         use_container_width=True, 
         height=800, 
         hide_index=True
