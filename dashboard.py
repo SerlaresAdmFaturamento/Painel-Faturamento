@@ -70,8 +70,7 @@ def carregar_dados():
         df['Valor_Faturamento'] = 0.0
 
     col_vencimento = 'Data _Vencimento' if 'Data _Vencimento' in df.columns else 'Data_Vencimento'
-    # Retornado ao original, sem alterar o Inicio_Medição
-    colunas_data = ['Fim_Medição', 'Data_Faturamento', col_vencimento]
+    colunas_data = ['Fim_Medição', 'Data_Faturamento', col_vencimento, 'Inicio_Medição']
     for col in colunas_data:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
@@ -129,28 +128,29 @@ def carregar_dados():
     def validar_vencimento(row):
         venc_real = row.get(col_vencimento)
         fim_med = row.get('Fim_Medição')
-        inicio_med_raw = row.get('Inicio_Medição')
+        inicio_med = row.get('Inicio_Medição')
         prazo_raw = row.get('Prazo')
         dia_texto = str(row.get('Dia', '')).strip().lower()
 
         if dia_texto in ['', 'nan', 'none', 'não informado']:
             return '➖ Não Avaliado'
 
-        # --- NOVA REGRA SOLICITADA: Vencimento vs Inicio Medição vs Prazo ---
-        if pd.notna(venc_real) and pd.notna(inicio_med_raw) and pd.notna(prazo_raw):
-            inicio_med_dt = pd.to_datetime(inicio_med_raw, dayfirst=True, errors='coerce')
-            if pd.notna(inicio_med_dt):
+        # --- NOVA REGRA SOLICITADA: Vencimento vs Início Medição vs Prazo ---
+        if pd.notna(venc_real) and pd.notna(inicio_med) and pd.notna(prazo_raw):
+            try:
                 prazo_match = re.search(r'(\d+)', str(prazo_raw))
                 if prazo_match:
                     prazo_dias = int(prazo_match.group(1))
-                    dias_prazo_real = (venc_real - inicio_med_dt).days
-                    if dias_prazo_real < prazo_dias:
+                    # Se (Vencimento - Início) < Prazo Estipulado -> Antecipado
+                    diferenca_real = (venc_real - inicio_med).days
+                    if diferenca_real < prazo_dias:
                         return '🚀 Antecipado'
+            except:
+                pass
 
-        # Regra D: Antecipado (coluna Dia contém explicitamente "antecipado")
+        # Regra D: Antecipado (via texto na coluna Dia)
         if "antecipado" in dia_texto:
             dt_fat = row.get('Data_Faturamento')
-            inicio_med = pd.to_datetime(inicio_med_raw, dayfirst=True, errors='coerce')
             if pd.isna(dt_fat) or pd.isna(inicio_med):
                 return '➖ Não Avaliado'
             return '🚀 Antecipado' if dt_fat < inicio_med else '❌ Não Antecipado'
@@ -162,12 +162,12 @@ def carregar_dados():
                 if pd.isna(venc_real): return '➖ Não Avaliado'
                 return '✅ Dentro do Prazo' if venc_real.weekday() == num_dia else '❌ Fora do Prazo'
 
-        # Busca números para as regras A, B e C
+        # Busca números para as demais regras
         match = re.search(r'(\d+)', dia_texto)
         if not match: return '➖ Não Avaliado'
         numero_dia = int(match.group(1))
 
-        # Regra C: O número é 0 (validar via coluna Prazo)
+        # Regra C: O número é 0
         if numero_dia == 0:
             fat_venc = row.get('Fat x Venc')
             if pd.isna(fat_venc) or pd.isna(prazo_raw): return '➖ Não Avaliado'
@@ -183,6 +183,7 @@ def carregar_dados():
         mes_alvo = fim_med.month
         ano_alvo = fim_med.year
         
+        # Lógica para determinar o mês esperado do boleto baseado no fim da medição
         if dia_alvo <= fim_med.day:
             mes_alvo += 1
             if mes_alvo > 12:
@@ -192,7 +193,7 @@ def carregar_dados():
             ultimo_dia_mes = calendar.monthrange(ano_alvo, mes_alvo)[1]
             data_alvo = pd.Timestamp(year=ano_alvo, month=mes_alvo, day=min(dia_alvo, ultimo_dia_mes))
             
-            # Comparação rigorosa para evitar erro de "Antecipado" quando o dia é igual
+            # Compara APENAS a data (dia/mês/ano) para evitar erros de segundos/minutos
             v_date = venc_real.date()
             a_date = data_alvo.date()
             
@@ -217,7 +218,7 @@ except Exception as e:
     st.stop()
 
 # ----------------------------------------------------
-# 2. FILTROS
+# 2. FILTROS (MANTIDOS CONFORME ORIGINAL)
 # ----------------------------------------------------
 st.sidebar.title("Filtros do Painel")
 
@@ -307,7 +308,7 @@ else:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ----------------------------------------------------
-    # 4. GRÁFICOS
+    # 4. GRÁFICOS (MANTIDOS CONFORME ORIGINAL)
     # ----------------------------------------------------
     def aplicar_estilo_grafico(fig):
         fig.update_layout(
@@ -381,7 +382,6 @@ else:
     df_exibicao = df_filtrado.copy()
     cols = list(df_exibicao.columns)
     
-    # Remove as colunas que vamos reposicionar manualmente
     for c in ['Tempo', 'Fat x Venc', 'Validação', 'Validação do Vencimento']:
         if c in cols: cols.remove(c)
     
@@ -398,14 +398,13 @@ else:
         if 'Validação' in df_filtrado.columns:
             cols.insert(idx_fim + 1, 'Validação')
 
-    # Insere a Validação do Vencimento logo após a Data_Vencimento
     if col_venc in cols:
         idx_venc = cols.index(col_venc)
         if 'Validação do Vencimento' in df_filtrado.columns:
             cols.insert(idx_venc + 1, 'Validação do Vencimento')
 
     df_exibicao = df_exibicao[cols]
-    colunas_data_exibir = ['Fim_Medição', 'Data_Faturamento', col_venc]
+    colunas_data_exibir = ['Fim_Medição', 'Data_Faturamento', col_venc, 'Inicio_Medição']
     for col in colunas_data_exibir:
         if col in df_exibicao.columns:
             df_exibicao[col] = df_exibicao[col].dt.strftime('%d/%m/%Y').fillna('-')
