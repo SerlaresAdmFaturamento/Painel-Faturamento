@@ -395,9 +395,6 @@ else:
     st.markdown("### 📋 Tabela de Dados")
     df_exibicao = df_filtrado.copy()
     cols = list(df_exibicao.columns)
-    df_exibicao['Valor_Faturamento'] = df_exibicao['Valor_Faturamento'].apply(
-        lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-    )
     
     st.dataframe(df_exibicao, use_container_width=True, height=600, hide_index=True)
 
