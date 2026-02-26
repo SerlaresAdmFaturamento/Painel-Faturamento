@@ -377,47 +377,16 @@ else:
                 fig_tempo.update_layout(yaxis=dict(range=[0, max_val * 1.2]))
             st.plotly_chart(fig_tempo, use_container_width=True)
 
-with col_graf4:
-        if 'Mes_Ano_Faturamento' in df_filtrado.columns and 'Carteira' in df_filtrado.columns:
-            df_carteira = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data'].copy()
-            
-            # Agrupa os dados
-            df_carteira = df_carteira.groupby(['Mes_Ano_Faturamento', 'Carteira'], as_index=False)['Valor_Faturamento'].sum()
-            
-            # Cria a data de ordenação e ORDENA o dataframe por ela para corrigir a linha do tempo
-            df_carteira['Data_Ordenacao'] = pd.to_datetime(df_carteira['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
-            df_carteira = df_carteira.sort_values('Data_Ordenacao')
-            
-            # Formata o texto do valor para aparecer no gráfico (R$ 78.282,02)
-            df_carteira['Valor_Texto'] = df_carteira['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            
-            # Gera o gráfico com category_orders para travar a cronologia correta
-            fig_carteira = px.line(
-                df_carteira, 
-                x='Mes_Ano_Faturamento', 
-                y='Valor_Faturamento', 
-                color='Carteira', 
-                title='Evolução por Carteira', 
-                markers=True, 
-                text='Valor_Texto',
-                category_orders={"Mes_Ano_Faturamento": df_carteira['Mes_Ano_Faturamento'].unique()}
-            )
-            
-            fig_carteira.update_traces(textposition="top center", line_shape='spline', line=dict(width=3))
-            st.plotly_chart(aplicar_estilo_grafico(fig_carteira), use_container_width=True)
-
-    # ----------------------------------------------------
-    # 5. TABELA DE DETALHAMENTO (INDENTAÇÃO CORRIGIDA)
-    # ----------------------------------------------------
+# ESTA LINHA ABAIXO DEVE ESTAR ALINHADA COM O "with col_graf4" OU "st.title"
     st.markdown("### 📋 Tabela de Dados")
     df_exibicao = df_filtrado.copy()
     cols = list(df_exibicao.columns)
     
-    # Remove colunas que serão reinseridas em posições específicas
+    # Remove colunas para reposicionamento
     for c in ['Tempo', 'Fat x Venc', 'Validação', 'Validação do Vencimento']:
         if c in cols: cols.remove(c)
     
-    # Reposicionamento de colunas conforme lógica original
+    # Reposicionamento de colunas
     if 'Data_Faturamento' in cols:
         idx_fat = cols.index('Data_Faturamento')
         if 'Tempo' in df_filtrado.columns:
@@ -450,7 +419,7 @@ with col_graf4:
         if col in df_exibicao.columns:
             df_exibicao[col] = df_exibicao[col].dt.strftime('%d/%m/%Y').fillna('-')
 
-    # --- CENTRALIZAÇÃO VISUAL (CSS) ---
+    # --- CSS PARA CENTRALIZAÇÃO ---
     st.markdown("""
         <style>
             div[data-testid="stDataFrame"] td { text-align: center !important; }
@@ -458,7 +427,7 @@ with col_graf4:
         </style>
     """, unsafe_allow_html=True)
 
-    # Exibe o dataframe com altura de 800px
+    # --- EXIBIÇÃO FINAL ---
     st.dataframe(
         df_exibicao, 
         use_container_width=True, 
