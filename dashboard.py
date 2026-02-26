@@ -127,6 +127,7 @@ def carregar_dados():
     # ----------------------------------------------------
     def validar_vencimento(row):
         venc_real = row.get(col_vencimento)
+        dt_fat = row.get('Data_Faturamento')
         fim_med = row.get('Fim_Medição')
         inicio_med = row.get('Inicio_Medição')
         prazo_raw = row.get('Prazo')
@@ -135,22 +136,22 @@ def carregar_dados():
         if dia_texto in ['', 'nan', 'none', 'não informado']:
             return '➖ Não Avaliado'
 
-        # --- NOVA REGRA SOLICITADA: Vencimento vs Início Medição vs Prazo ---
-        if pd.notna(venc_real) and pd.notna(inicio_med) and pd.notna(prazo_raw):
+        # --- NOVA REGRA PRIORITÁRIA: Comparação Fat x Venc vs Prazo ---
+        # Se (Vencimento - Faturamento) < Prazo Estipulado -> Antecipado
+        if pd.notna(venc_real) and pd.notna(dt_fat) and pd.notna(prazo_raw):
             try:
                 prazo_match = re.search(r'(\d+)', str(prazo_raw))
                 if prazo_match:
-                    prazo_dias = int(prazo_match.group(1))
-                    # Se (Vencimento - Início) < Prazo Estipulado -> Antecipado
-                    diferenca_real = (venc_real - inicio_med).days
-                    if diferenca_real < prazo_dias:
+                    prazo_dias_limite = int(prazo_match.group(1))
+                    prazo_real_executado = (venc_real - dt_fat).days
+                    
+                    if prazo_real_executado < prazo_dias_limite:
                         return '🚀 Antecipado'
             except:
                 pass
 
         # Regra D: Antecipado (via texto na coluna Dia)
         if "antecipado" in dia_texto:
-            dt_fat = row.get('Data_Faturamento')
             if pd.isna(dt_fat) or pd.isna(inicio_med):
                 return '➖ Não Avaliado'
             return '🚀 Antecipado' if dt_fat < inicio_med else '❌ Não Antecipado'
@@ -160,7 +161,7 @@ def carregar_dados():
         for nome_dia, num_dia in dias_semana.items():
             if nome_dia in dia_texto:
                 if pd.isna(venc_real): return '➖ Não Avaliado'
-                return '✅ Dentro do Prazo' if venc_real.weekday() == num_dia else '❌ Fora do Prazo'
+                return '✅ Dentro do Prazo' if venc_real.weekday() == num_dia else '❌ Depois do Prazo'
 
         # Busca números para as demais regras
         match = re.search(r'(\d+)', dia_texto)
@@ -169,21 +170,20 @@ def carregar_dados():
 
         # Regra C: O número é 0
         if numero_dia == 0:
-            fat_venc = row.get('Fat x Venc')
-            if pd.isna(fat_venc) or pd.isna(prazo_raw): return '➖ Não Avaliado'
+            fat_venc = (venc_real - dt_fat).days if pd.notna(venc_real) and pd.notna(dt_fat) else None
+            if fat_venc is None or pd.isna(prazo_raw): return '➖ Não Avaliado'
             p_match = re.search(r'(\d+)', str(prazo_raw))
             if p_match:
-                return '✅ Dentro do Prazo' if int(fat_venc) == int(p_match.group(1)) else '❌ Fora do Prazo'
+                return '✅ Dentro do Prazo' if int(fat_venc) == int(p_match.group(1)) else '❌ Depois do Prazo'
             return '➖ Não Avaliado'
 
-        # Regras A e B: Dia específico do mês (CORREÇÃO PARA LINHAS 843/844)
+        # Regras A e B: Dia específico do mês
         if pd.isna(venc_real) or pd.isna(fim_med): return '➖ Não Avaliado'
 
         dia_alvo = numero_dia
         mes_alvo = fim_med.month
         ano_alvo = fim_med.year
         
-        # Lógica para determinar o mês esperado do boleto baseado no fim da medição
         if dia_alvo <= fim_med.day:
             mes_alvo += 1
             if mes_alvo > 12:
@@ -193,14 +193,13 @@ def carregar_dados():
             ultimo_dia_mes = calendar.monthrange(ano_alvo, mes_alvo)[1]
             data_alvo = pd.Timestamp(year=ano_alvo, month=mes_alvo, day=min(dia_alvo, ultimo_dia_mes))
             
-            # Compara APENAS a data (dia/mês/ano) para evitar erros de segundos/minutos
             v_date = venc_real.date()
             a_date = data_alvo.date()
             
             if v_date == a_date:
                 return '✅ Dentro do Prazo'
             elif v_date > a_date:
-                return '❌ Fora do Prazo'
+                return '❌ Depois do Prazo'
             else:
                 return '🚀 Antecipado'
         except:
@@ -218,7 +217,7 @@ except Exception as e:
     st.stop()
 
 # ----------------------------------------------------
-# 2. FILTROS (MANTIDOS CONFORME ORIGINAL)
+# 2. FILTROS
 # ----------------------------------------------------
 st.sidebar.title("Filtros do Painel")
 
@@ -308,7 +307,7 @@ else:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ----------------------------------------------------
-    # 4. GRÁFICOS (MANTIDOS CONFORME ORIGINAL)
+    # 4. GRÁFICOS
     # ----------------------------------------------------
     def aplicar_estilo_grafico(fig):
         fig.update_layout(
