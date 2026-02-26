@@ -306,14 +306,17 @@ else:
     faturamento_total = df_filtrado['Valor_Faturamento'].sum()
     contagem_medicoes = df_filtrado[df_filtrado['Valor_Faturamento'] > 0].shape[0]
     faturamento_medio = (faturamento_total / contagem_medicoes) if contagem_medicoes > 0 else 0.0
+    total_clientes = df_filtrado['Cliente'].str.split('-').str[0].str.strip().nunique()
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("💰 Faturamento Total", f"R$ {faturamento_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     with col2:
         st.metric("📈 Ticket Médio", f"R$ {faturamento_medio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     with col3:
         st.metric("📋 Total de Medições", contagem_medicoes)
+    with col4:
+    st.metric("👥 Total de Clientes", total_clientes)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
