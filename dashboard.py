@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import datetime
+import re
+import calendar
 
 # ----------------------------------------------------
 # CONFIGURAÇÃO DA PÁGINA
@@ -121,6 +123,56 @@ def carregar_dados():
             return '⚠️ Pendente'
             
     df['Validação'] = df.apply(classificar_validacao, axis=1)
+
+    # ----------------------------------------------------
+    # NOVA IMPLEMENTAÇÃO: Validação do Vencimento
+    # ----------------------------------------------------
+    def validar_vencimento(row):
+        venc_real = row.get(col_vencimento)
+        fim_med = row.get('Fim_Medição')
+        dia_texto = str(row.get('Dia', ''))
+
+        # Se não tiver as datas necessárias ou a coluna Dia estiver vazia
+        if pd.isna(venc_real) or pd.isna(fim_med) or dia_texto.strip() in ['', 'nan', 'None', 'Não Informado']:
+            return '➖ Não Avaliado'
+
+        # Busca o primeiro número inteiro dentro da string da coluna Dia
+        match = re.search(r'(\d+)', dia_texto)
+        if not match:
+            return '➖ Não Avaliado'
+        
+        dia_alvo = int(match.group(1))
+        mes_alvo = fim_med.month
+        ano_alvo = fim_med.year
+        
+        # Se o dia estipulado é menor ou igual ao dia de fim de medição,
+        # pressupõe-se que o prazo pula para o mês seguinte.
+        if dia_alvo <= fim_med.day:
+            mes_alvo += 1
+            if mes_alvo > 12:
+                mes_alvo = 1
+                ano_alvo += 1
+                
+        try:
+            # Garante que não criaremos uma data inválida (ex: 30 de Fevereiro)
+            ultimo_dia_mes = calendar.monthrange(ano_alvo, mes_alvo)[1]
+            dia_alvo_safe = min(dia_alvo, ultimo_dia_mes)
+            data_alvo = pd.Timestamp(year=ano_alvo, month=mes_alvo, day=dia_alvo_safe)
+        except:
+            return '➖ Erro no Cálculo'
+
+        # Validação Exata (Data Real x Data Alvo)
+        if venc_real.date() == data_alvo.date():
+            return '✅ Dentro do Prazo'
+        elif venc_real.date() > data_alvo.date():
+            return '❌ Fora do Prazo'
+        else:
+            return '🚀 Antecipado'
+
+    if 'Dia' in df.columns:
+        df['Validação do Vencimento'] = df.apply(validar_vencimento, axis=1)
+    # ----------------------------------------------------
+
     return df
 
 try:
