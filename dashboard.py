@@ -70,8 +70,8 @@ def carregar_dados():
         df['Valor_Faturamento'] = 0.0
 
     col_vencimento = 'Data _Vencimento' if 'Data _Vencimento' in df.columns else 'Data_Vencimento'
-    # Adicionado 'Inicio_Medição' para a regra D funcionar como data
-    colunas_data = ['Inicio_Medição', 'Fim_Medição', 'Data_Faturamento', col_vencimento]
+    # Retornado ao original, sem alterar o Inicio_Medição
+    colunas_data = ['Fim_Medição', 'Data_Faturamento', col_vencimento]
     for col in colunas_data:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
@@ -129,7 +129,6 @@ def carregar_dados():
     def validar_vencimento(row):
         venc_real = row.get(col_vencimento)
         fim_med = row.get('Fim_Medição')
-        # Trazendo o texto minúsculo para facilitar validações de palavras
         dia_texto = str(row.get('Dia', '')).strip().lower()
 
         if dia_texto in ['', 'nan', 'none', 'não informado']:
@@ -138,7 +137,8 @@ def carregar_dados():
         # Regra D: Antecipado
         if "antecipado" in dia_texto:
             dt_fat = row.get('Data_Faturamento')
-            inicio_med = row.get('Inicio_Medição')
+            # Converte temporariamente apenas para esta validação, sem alterar a base
+            inicio_med = pd.to_datetime(row.get('Inicio_Medição'), dayfirst=True, errors='coerce')
             
             if pd.isna(dt_fat) or pd.isna(inicio_med):
                 return '➖ Não Avaliado'
@@ -158,7 +158,6 @@ def carregar_dados():
             if nome_dia in dia_texto:
                 if pd.isna(venc_real):
                     return '➖ Não Avaliado'
-                # .weekday() retorna 0 para Segunda, 1 para Terça, etc.
                 if venc_real.weekday() == num_dia:
                     return '✅ Dentro do Prazo'
                 else:
@@ -180,7 +179,6 @@ def carregar_dados():
                 return '➖ Não Avaliado'
                 
             try:
-                # Caso a coluna Prazo tenha texto misturado com número, isolamos o número
                 prazo_match = re.search(r'(\d+)', str(prazo_val))
                 if prazo_match:
                     prazo_dias = int(prazo_match.group(1))
@@ -268,7 +266,8 @@ def pegar_unicos(coluna):
 
 filtro_restaurante = st.sidebar.multiselect("🍽️ Restaurante", pegar_unicos('Restaurante'))
 filtro_cliente = st.sidebar.multiselect("🏢 Cliente", pegar_unicos('Cliente'))
-filtro_validacao = st.sidebar.multiselect("✅ Validação", pegar_unicos('Validação'))
+filtro_validacao = st.sidebar.multiselect("✅ Validação Geral", pegar_unicos('Validação'))
+filtro_val_venc = st.sidebar.multiselect("📆 Validação de Vencimento", pegar_unicos('Validação do Vencimento'))
 filtro_encerrado = st.sidebar.multiselect("🔒 Encerrado", pegar_unicos('Medição_Encerrada'))
 filtro_carteira = st.sidebar.multiselect("💼 Carteira", pegar_unicos('Carteira'))
 
@@ -295,6 +294,7 @@ if len(filtro_venc) == 2:
 if filtro_restaurante: df_filtrado = df_filtrado[df_filtrado['Restaurante'].isin(filtro_restaurante)]
 if filtro_cliente: df_filtrado = df_filtrado[df_filtrado['Cliente'].isin(filtro_cliente)]
 if filtro_validacao: df_filtrado = df_filtrado[df_filtrado['Validação'].isin(filtro_validacao)]
+if filtro_val_venc: df_filtrado = df_filtrado[df_filtrado['Validação do Vencimento'].isin(filtro_val_venc)]
 if filtro_encerrado: df_filtrado = df_filtrado[df_filtrado['Medição_Encerrada'].isin(filtro_encerrado)]
 if filtro_carteira: df_filtrado = df_filtrado[df_filtrado['Carteira'].isin(filtro_carteira)]
 
@@ -395,7 +395,9 @@ else:
     st.markdown("### 📋 Tabela de Dados")
     df_exibicao = df_filtrado.copy()
     cols = list(df_exibicao.columns)
-    for c in ['Tempo', 'Fat x Venc', 'Validação']:
+    
+    # Remove as colunas que vamos reposicionar manualmente
+    for c in ['Tempo', 'Fat x Venc', 'Validação', 'Validação do Vencimento']:
         if c in cols: cols.remove(c)
     
     if 'Data_Faturamento' in cols:
@@ -410,6 +412,12 @@ else:
         idx_fim = cols.index('Fim_Medição')
         if 'Validação' in df_filtrado.columns:
             cols.insert(idx_fim + 1, 'Validação')
+
+    # Insere a Validação do Vencimento logo após a Data_Vencimento
+    if col_venc in cols:
+        idx_venc = cols.index(col_venc)
+        if 'Validação do Vencimento' in df_filtrado.columns:
+            cols.insert(idx_venc + 1, 'Validação do Vencimento')
 
     df_exibicao = df_exibicao[cols]
     colunas_data_exibir = ['Fim_Medição', 'Data_Faturamento', col_venc]
