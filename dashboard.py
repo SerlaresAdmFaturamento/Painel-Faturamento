@@ -421,6 +421,12 @@ else:
 
     df_exibicao = df_exibicao[cols]
 
+    # --- RESOLUÇÃO DO FORMATO DE MOEDA BR ---
+    if 'Valor_Faturamento' in df_exibicao.columns:
+        df_exibicao['Valor_Faturamento'] = df_exibicao['Valor_Faturamento'].apply(
+            lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+        )
+
     # --- NOVO BLOCO: Configuração de Exibição Dinâmica ---
     # Em vez de converter para String aqui, usamos o column_config do Streamlit
     # Isso garante que a ordenação funcione clicando no cabeçalho.
