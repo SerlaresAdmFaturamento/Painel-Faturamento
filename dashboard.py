@@ -421,25 +421,22 @@ else:
 
     df_exibicao = df_exibicao[cols]
 
-# --- RESOLUÇÃO DO FORMATO DE MOEDA BR ---
+    # --- RESOLUÇÃO DO FORMATO DE MOEDA BR (SÓ ISSO) ---
     if 'Valor_Faturamento' in df_exibicao.columns:
         df_exibicao['Valor_Faturamento'] = df_exibicao['Valor_Faturamento'].apply(
             lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         )
 
-    # --- RESOLUÇÃO DO FORMATO DE DATA BR ---
+    # --- FORMATO DE DATA BR ---
     colunas_data_exibir = ['Fim_Medição', 'Data_Faturamento', col_venc, 'Inicio_Medição']
     for col in colunas_data_exibir:
         if col in df_exibicao.columns:
             df_exibicao[col] = df_exibicao[col].dt.strftime('%d/%m/%Y').fillna('-')
 
-    # --- CENTRALIZAR USANDO PANDAS STYLER (VERSÃO ANTIGA) ---
-    # Isso aplica o alinhamento central em todas as células da tabela
-    df_estilizado = df_exibicao.style.set_properties(**{'text-align': 'center'})
-
-    # Exibe a tabela estilizada
+    # Exibe o dataframe diretamente (sem column_config para não dar erro de tipo)
     st.dataframe(
-        df_estilizado, 
+        df_exibicao, 
         use_container_width=True, 
-        height=800
+        height=800, 
+        hide_index=True
     )
