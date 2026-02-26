@@ -421,31 +421,19 @@ else:
 
     df_exibicao = df_exibicao[cols]
 
-# --- 1. FORMATAÇÃO DOS DADOS (MOEDA E DATA) ---
+    # --- RESOLUÇÃO DO FORMATO DE MOEDA BR (SÓ ISSO) ---
     if 'Valor_Faturamento' in df_exibicao.columns:
         df_exibicao['Valor_Faturamento'] = df_exibicao['Valor_Faturamento'].apply(
             lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         )
 
+    # --- FORMATO DE DATA BR ---
     colunas_data_exibir = ['Fim_Medição', 'Data_Faturamento', col_venc, 'Inicio_Medição']
     for col in colunas_data_exibir:
         if col in df_exibicao.columns:
             df_exibicao[col] = df_exibicao[col].dt.strftime('%d/%m/%Y').fillna('-')
 
-    # --- 2. INJEÇÃO DE CSS PARA CENTRALIZAR TUDO ---
-    # Esse bloco força o navegador a alinhar o texto de todas as células da tabela no centro
-    st.markdown("""
-        <style>
-            div[data-testid="stDataFrame"] td {
-                text-align: center !important;
-            }
-            div[data-testid="stDataFrame"] th {
-                text-align: center !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # --- 3. EXIBIÇÃO DA TABELA ---
+    # Exibe o dataframe diretamente (sem column_config para não dar erro de tipo)
     st.dataframe(
         df_exibicao, 
         use_container_width=True, 
