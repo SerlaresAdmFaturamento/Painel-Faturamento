@@ -124,76 +124,60 @@ def carregar_dados():
     df['Validação'] = df.apply(classificar_validacao, axis=1)
 
     # ----------------------------------------------------
-    # IMPLEMENTAÇÃO: Validação do Vencimento (COMPLETA)
+    # IMPLEMENTAÇÃO: Validação do Vencimento (AJUSTADA)
     # ----------------------------------------------------
     def validar_vencimento(row):
         venc_real = row.get(col_vencimento)
         fim_med = row.get('Fim_Medição')
+        inicio_med_raw = row.get('Inicio_Medição')
+        prazo_val_raw = row.get('Prazo')
         dia_texto = str(row.get('Dia', '')).strip().lower()
 
         if dia_texto in ['', 'nan', 'none', 'não informado']:
             return '➖ Não Avaliado'
 
-        # Regra D: Antecipado
+        # --- NOVA REGRA: Vencimento vs Início de Medição baseado no Prazo ---
+        if pd.notna(venc_real) and pd.notna(inicio_med_raw) and pd.notna(prazo_val_raw):
+            inicio_med_dt = pd.to_datetime(inicio_med_raw, dayfirst=True, errors='coerce')
+            if pd.notna(inicio_med_dt):
+                dias_prazo_real = (venc_real - inicio_med_dt).days
+                prazo_match = re.search(r'(\d+)', str(prazo_val_raw))
+                if prazo_match:
+                    prazo_definido = int(prazo_match.group(1))
+                    if dias_prazo_real < prazo_definido:
+                        return '🚀 Antecipado'
+
+        # Regra D: Antecipado (via coluna Dia)
         if "antecipado" in dia_texto:
             dt_fat = row.get('Data_Faturamento')
-            # Converte temporariamente apenas para esta validação, sem alterar a base
-            inicio_med = pd.to_datetime(row.get('Inicio_Medição'), dayfirst=True, errors='coerce')
-            
+            inicio_med = pd.to_datetime(inicio_med_raw, dayfirst=True, errors='coerce')
             if pd.isna(dt_fat) or pd.isna(inicio_med):
                 return '➖ Não Avaliado'
-                
-            if dt_fat >= inicio_med:
-                return '❌ Não Antecipado'
-            else:
-                return '🚀 Antecipado'
+            return '🚀 Antecipado' if dt_fat < inicio_med else '❌ Não Antecipado'
 
         # Regra E: Dias da Semana
-        dias_semana = {
-            'segunda': 0, 'terça': 1, 'terca': 1, 
-            'quarta': 2, 'quinta': 3, 'sexta': 4, 
-            'sábado': 5, 'sabado': 5, 'domingo': 6
-        }
+        dias_semana = {'segunda': 0, 'terça': 1, 'terca': 1, 'quarta': 2, 'quinta': 3, 'sexta': 4, 'sábado': 5, 'sabado': 5, 'domingo': 6}
         for nome_dia, num_dia in dias_semana.items():
             if nome_dia in dia_texto:
-                if pd.isna(venc_real):
-                    return '➖ Não Avaliado'
-                if venc_real.weekday() == num_dia:
-                    return '✅ Dentro do Prazo'
-                else:
-                    return '❌ Fora do Prazo'
+                if pd.isna(venc_real): return '➖ Não Avaliado'
+                return '✅ Dentro do Prazo' if venc_real.weekday() == num_dia else '❌ Fora do Prazo'
 
         # Busca números para as regras A, B e C
         match = re.search(r'(\d+)', dia_texto)
-        if not match:
-            return '➖ Não Avaliado'
-            
+        if not match: return '➖ Não Avaliado'
         numero_dia = int(match.group(1))
 
-        # Regra C: O número é 0 (validar via coluna Prazo)
+        # Regra C: Dia 0
         if numero_dia == 0:
             fat_venc = row.get('Fat x Venc')
-            prazo_val = row.get('Prazo')
-            
-            if pd.isna(fat_venc) or pd.isna(prazo_val):
-                return '➖ Não Avaliado'
-                
-            try:
-                prazo_match = re.search(r'(\d+)', str(prazo_val))
-                if prazo_match:
-                    prazo_dias = int(prazo_match.group(1))
-                    if int(fat_venc) == prazo_dias:
-                        return '✅ Dentro do Prazo'
-                    else:
-                        return '❌ Fora do Prazo'
-                else:
-                    return '➖ Não Avaliado'
-            except:
-                return '➖ Erro no Cálculo'
-
-        # Regras A e B: Dia específico do mês
-        if pd.isna(venc_real) or pd.isna(fim_med):
+            if pd.isna(fat_venc) or pd.isna(prazo_val_raw): return '➖ Não Avaliado'
+            p_match = re.search(r'(\d+)', str(prazo_val_raw))
+            if p_match:
+                return '✅ Dentro do Prazo' if int(fat_venc) == int(p_match.group(1)) else '❌ Fora do Prazo'
             return '➖ Não Avaliado'
+
+        # Regras A e B: Dia específico do mês (Correção de Antecipação Indevida)
+        if pd.isna(venc_real) or pd.isna(fim_med): return '➖ Não Avaliado'
 
         dia_alvo = numero_dia
         mes_alvo = fim_med.month
@@ -202,26 +186,24 @@ def carregar_dados():
         if dia_alvo <= fim_med.day:
             mes_alvo += 1
             if mes_alvo > 12:
-                mes_alvo = 1
-                ano_alvo += 1
+                mes_alvo = 1; ano_alvo += 1
                 
         try:
             ultimo_dia_mes = calendar.monthrange(ano_alvo, mes_alvo)[1]
-            dia_alvo_safe = min(dia_alvo, ultimo_dia_mes)
-            data_alvo = pd.Timestamp(year=ano_alvo, month=mes_alvo, day=dia_alvo_safe)
+            data_alvo = pd.Timestamp(year=ano_alvo, month=mes_alvo, day=min(dia_alvo, ultimo_dia_mes))
+            
+            # Comparação explícita de datas para evitar erros de timestamp
+            if venc_real.date() == data_alvo.date():
+                return '✅ Dentro do Prazo'
+            elif venc_real.date() > data_alvo.date():
+                return '❌ Fora do Prazo'
+            else:
+                return '🚀 Antecipado'
         except:
             return '➖ Erro no Cálculo'
 
-        if venc_real.date() == data_alvo.date():
-            return '✅ Dentro do Prazo'
-        elif venc_real.date() > data_alvo.date():
-            return '❌ Fora do Prazo'
-        else:
-            return '🚀 Antecipado'
-
     if 'Dia' in df.columns:
         df['Validação do Vencimento'] = df.apply(validar_vencimento, axis=1)
-    # ----------------------------------------------------
 
     return df
 
