@@ -382,11 +382,12 @@ else:
             df_carteira = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data'].copy()
             df_carteira = df_carteira.groupby(['Mes_Ano_Faturamento', 'Carteira'], as_index=False)['Valor_Faturamento'].sum()
             df_carteira['Data_Ordenacao'] = pd.to_datetime(df_carteira['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
-            df_carteira = df_carteira.sort_values('Data_Ordenacao')
-            fig_carteira = px.line(df_carteira, x='Mes_Ano_Faturamento', y='Valor_Faturamento', color='Carteira', title='Evolução por Carteira', markers=True)
-            fig_carteira.update_traces(line_shape='spline', line=dict(width=3))
+            df_carteira['Valor_Texto'] = df_carteira['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+            fig_carteira = px.line(df_carteira, x='Mes_Ano_Faturamento', y='Valor_Faturamento', color='Carteira', 
+                               title='Evolução por Carteira', markers=True, text='Valor_Texto')
+            fig_carteira.update_traces(textposition="top center", line_shape='spline', line=dict(width=3))
             fig_carteira = aplicar_estilo_grafico(fig_carteira)
-            st.plotly_chart(fig_carteira, use_container_width=True)
+            st.plotly_chart(aplicar_estilo_grafico(fig_carteira), use_container_width=True)
 
     # ----------------------------------------------------
     # 5. TABELA DE DETALHAMENTO (AJUSTADA PARA ORDENAÇÃO)
@@ -425,7 +426,7 @@ else:
     # Isso garante que a ordenação funcione clicando no cabeçalho.
     
     configuracao_colunas = {
-        'Valor_Faturamento': st.column_config.NumberColumn("Valor_Faturamento", format="R$ %.2f"),
+        'Valor_Faturamento': st.column_config.NumberColumn("Valor_Faturamento", format="R$ %.2f", locale="pt-BR"),
         'Fim_Medição': st.column_config.DateColumn("Fim_Medição", format="DD/MM/YYYY"),
         'Data_Faturamento': st.column_config.DateColumn("Data_Faturamento", format="DD/MM/YYYY"),
         col_venc: st.column_config.DateColumn(col_venc, format="DD/MM/YYYY"),
