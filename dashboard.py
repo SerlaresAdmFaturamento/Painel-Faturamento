@@ -396,8 +396,6 @@ else:
     df_exibicao = df_filtrado.copy()
     cols = list(df_exibicao.columns)
     
-    st.dataframe(df_exibicao, use_container_width=True, height=600, hide_index=True)
-
     # Remove colunas que serão reinseridas em posições específicas
     for c in ['Tempo', 'Fat x Venc', 'Validação', 'Validação do Vencimento']:
         if c in cols: cols.remove(c)
