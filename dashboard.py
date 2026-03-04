@@ -440,48 +440,70 @@ else:
             st.error(f"Erro Excel: {e}")
 
     with col_btn2:
-        def gerar_pdf_fpdf(df_input):
+        def gerar_pdf_profissional(df_input):
             from fpdf import FPDF
             
-            # Criar objeto PDF (L = Paisagem)
+            # Lista das colunas que você solicitou
+            colunas_alvo = ["Restaurante", "Cliente", "Inicio_Medição", "Fim_Medição", "Período_Medição", "Prazo", "Dia"]
+            
+            # Filtrar apenas as colunas que existem no dataframe (evita erro de digitação)
+            cols_existentes = [c for c in colunas_alvo if c in df_input.columns]
+            df_pdf = df_input[cols_existentes].head(200)
+
             pdf = FPDF(orientation='L', unit='mm', format='A4')
             pdf.add_page()
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, "Relatorio de Faturamento", ln=True, align='C')
-            pdf.ln(5)
             
-            # Seleciona as colunas principais
-            cols_print = df_input.columns.tolist()[:10]
+            # --- CABEÇALHO DO DOCUMENTO ---
+            pdf.set_fill_color(44, 62, 80)  # Azul Escuro (mesmo do seu dashboard)
+            pdf.rect(0, 0, 297, 30, 'F') 
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Arial", 'B', 16)
+            pdf.cell(0, 10, "RELATÓRIO DE FATURAMENTO", ln=True, align='C')
+            pdf.set_font("Arial", size=10)
+            pdf.cell(0, 10, f"Gerado em: {datetime.date.today().strftime('%d/%m/%Y')}", ln=True, align='C')
+            pdf.ln(10)
+
+            # --- CABEÇALHO DA TABELA ---
+            pdf.set_font("Arial", 'B', 9)
+            pdf.set_fill_color(52, 152, 219) # Azul Claro
+            pdf.set_text_color(255, 255, 255)
             
-            # Cabeçalho
-            pdf.set_font("Arial", 'B', 8)
-            for col in cols_print:
-                pdf.cell(27, 8, str(col)[:15], 1, 0, 'C')
+            largura_col = 280 / len(cols_existentes) if cols_existentes else 30
+            
+            for col in cols_existentes:
+                pdf.cell(largura_col, 10, col.replace("_", " "), 1, 0, 'C', True)
             pdf.ln()
+
+            # --- DADOS (ZEBRADOS) ---
+            pdf.set_font("Arial", size=8)
+            pdf.set_text_color(0, 0, 0)
             
-            # Dados (Limitar a 200 linhas)
-            pdf.set_font("Arial", size=7)
-            for _, row in df_input.head(200).iterrows():
-                for col in cols_print:
-                    # Trata caracteres especiais para evitar erro de encoding
-                    val = str(row[col]).encode('latin-1', 'ignore').decode('latin-1')
-                    pdf.cell(27, 6, val[:18], 1)
+            for i, (_, row) in enumerate(df_pdf.iterrows()):
+                # Efeito zebrado: muda a cor do fundo a cada linha
+                if i % 2 == 0:
+                    pdf.set_fill_color(245, 245, 245)
+                else:
+                    pdf.set_fill_color(255, 255, 255)
+                
+                for col in cols_existentes:
+                    # Trata o texto para evitar erros de caracteres especiais
+                    texto = str(row[col]).encode('latin-1', 'ignore').decode('latin-1')
+                    pdf.cell(largura_col, 8, texto[:20], 1, 0, 'C', True)
                 pdf.ln()
-            
-            # O SEGREDO: Converter bytearray para bytes
+
             return bytes(pdf.output())
 
         try:
-            pdf_bytes = gerar_pdf_fpdf(df_exibicao)
+            pdf_bytes = gerar_pdf_profissional(df_exibicao)
             st.download_button(
-                label="📋 PDF Tabela",
+                label="📋 PDF Profissional",
                 data=pdf_bytes,
-                file_name=f"faturamento_{datetime.date.today()}.pdf",
+                file_name=f"relatorio_faturamento_{datetime.date.today()}.pdf",
                 mime="application/pdf",
-                key="btn_pdf_final"
+                key="btn_pdf_pro"
             )
         except Exception as e:
-            st.error(f"Erro ao gerar: {e}")
+            st.error(f"Erro ao gerar PDF: {e}")
 
     # --- TABELA VISUAL (Indentada corretamente com 4 espaços) ---
     config_colunas = {
