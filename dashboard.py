@@ -6,6 +6,7 @@ import re
 import calendar
 import os
 import io
+from fpdf import FPDF
 
 # ----------------------------------------------------
 # FORÇAR MODO ESCURO NATIVO 
@@ -438,47 +439,39 @@ else:
         except Exception as e:
             st.error(f"Erro Excel: {e}")
 
-    with col_btn2:
-        # BOTÃO PDF TABELA - CORREÇÃO DEFINITIVA (BAIXA O ARQUIVO)
-        if st.button("📋 PDF Tabela"):
-            # Preparar o HTML para o gerador de PDF
-            df_html = df_exibicao.copy()
-            if 'Valor_Faturamento' in df_html.columns:
-                df_html['Valor_Faturamento'] = df_html['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            for d_col in ['Fim_Medição', 'Data_Faturamento', col_venc, 'Inicio_Medição']:
-                if d_col in df_html.columns:
-                    df_html[d_col] = pd.to_datetime(df_html[d_col]).dt.strftime('%d/%m/%Y')
+with col_btn2:
+        def gerar_pdf_fpdf(df_input):
+            pdf = FPDF(orientation='L', unit='mm', format='A4')
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 10)
+            pdf.cell(0, 10, "Relatorio de Faturamento", ln=True, align='C')
+            pdf.set_font("Arial", size=7)
             
-            html_table = df_html.to_html(index=False, table_id="printTable")
+            # Seleciona as primeiras 10 colunas para caber na folha
+            cols_to_print = df_input.columns.tolist()[:10]
             
-            # Script JS que injeta bibliotecas via CDN e gera o download do PDF automaticamente
-            pdf_download_script = f"""
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-            <script>
-                (function() {{
-                    const {{ jsPDF }} = window.jspdf;
-                    const doc = new jsPDF('l', 'mm', 'a4');
-                    
-                    // Criação de uma div temporária para conter a tabela
-                    var container = document.createElement('div');
-                    container.innerHTML = '{html_table.replace("'", "\\'").replace("\\n", "")}';
-                    var table = container.querySelector('table');
-                    
-                    doc.text("Relatório de Faturamento - Tabela Completa", 14, 15);
-                    doc.autoTable({{ 
-                        html: table,
-                        startY: 20,
-                        styles: {{ fontSize: 7, cellPadding: 1 }},
-                        headStyles: {{ fillColor: [52, 152, 219] }}
-                    }});
-                    
-                    doc.save('tabela_faturamento.pdf');
-                }})();
-            </script>
-            """
-            st.components.v1.html(pdf_download_script, height=0)
-            st.success("O download do PDF foi iniciado!")
+            # Cabeçalho
+            for col in cols_to_print:
+                pdf.cell(27, 8, str(col)[:15], 1)
+            pdf.ln()
+            
+            # Linhas
+            for _, row in df_input.head(200).iterrows():
+                for col in cols_to_print:
+                    pdf.cell(27, 6, str(row[col])[:18], 1)
+                pdf.ln()
+            return pdf.output()
+
+        try:
+            pdf_output = gerar_pdf_fpdf(df_exibicao)
+            st.download_button(
+                label="📋 PDF Tabela",
+                data=pdf_output,
+                file_name=f"tabela_faturamento_{datetime.date.today()}.pdf",
+                mime="application/pdf"
+            )
+        except Exception as e:
+            st.error("Erro ao gerar PDF. Certifique-se de que a biblioteca 'fpdf2' está instalada.")
 
     # --- TABELA VISUAL ---
     config_colunas = {
