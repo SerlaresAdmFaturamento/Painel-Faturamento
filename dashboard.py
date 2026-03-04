@@ -131,9 +131,6 @@ def carregar_dados():
             
     df['Validação'] = df.apply(classificar_validacao, axis=1)
 
-    # ----------------------------------------------------
-    # IMPLEMENTAÇÃO: Validação do Vencimento (AJUSTADA)
-    # ----------------------------------------------------
     def validar_vencimento(row):
         venc_real = row.get(col_vencimento)
         dt_fat = row.get('Data_Faturamento')
@@ -145,39 +142,32 @@ def carregar_dados():
         if dia_texto in ['', 'nan', 'none', 'não informado']:
             return '➖ Não Avaliado'
 
-        # --- NOVA REGRA PRIORITÁRIA: Comparação Fat x Venc vs Prazo ---
-        # Se (Vencimento - Faturamento) < Prazo Estipulado -> Antecipado
         if pd.notna(venc_real) and pd.notna(dt_fat) and pd.notna(prazo_raw):
             try:
                 prazo_match = re.search(r'(\d+)', str(prazo_raw))
                 if prazo_match:
                     prazo_dias_limite = int(prazo_match.group(1))
                     prazo_real_executado = (venc_real - dt_fat).days
-                    
                     if prazo_real_executado < prazo_dias_limite:
                         return '🚀 Antecipado'
             except:
                 pass
 
-        # Regra D: Antecipado (via texto na coluna Dia)
         if "antecipado" in dia_texto:
             if pd.isna(dt_fat) or pd.isna(inicio_med):
                 return '➖ Não Avaliado'
             return '🚀 Antecipado' if dt_fat < inicio_med else '❌ Não Antecipado'
 
-        # Regra E: Dias da Semana
         dias_semana = {'segunda': 0, 'terça': 1, 'terca': 1, 'quarta': 2, 'quinta': 3, 'sexta': 4, 'sábado': 5, 'sabado': 5, 'domingo': 6}
         for nome_dia, num_dia in dias_semana.items():
             if nome_dia in dia_texto:
                 if pd.isna(venc_real): return '➖ Não Avaliado'
                 return '✅ Dentro do Prazo' if venc_real.weekday() == num_dia else '❌ Depois do Prazo'
 
-        # Busca números para as demais regras
         match = re.search(r'(\d+)', dia_texto)
         if not match: return '➖ Não Avaliado'
         numero_dia = int(match.group(1))
 
-        # Regra C: O número é 0
         if numero_dia == 0:
             fat_venc = (venc_real - dt_fat).days if pd.notna(venc_real) and pd.notna(dt_fat) else None
             if fat_venc is None or pd.isna(prazo_raw): return '➖ Não Avaliado'
@@ -186,7 +176,6 @@ def carregar_dados():
                 return '✅ Dentro do Prazo' if int(fat_venc) == int(p_match.group(1)) else '❌ Depois do Prazo'
             return '➖ Não Avaliado'
 
-        # Regras A e B: Dia específico do mês
         if pd.isna(venc_real) or pd.isna(fim_med): return '➖ Não Avaliado'
 
         dia_alvo = numero_dia
@@ -201,16 +190,11 @@ def carregar_dados():
         try:
             ultimo_dia_mes = calendar.monthrange(ano_alvo, mes_alvo)[1]
             data_alvo = pd.Timestamp(year=ano_alvo, month=mes_alvo, day=min(dia_alvo, ultimo_dia_mes))
-            
             v_date = venc_real.date()
             a_date = data_alvo.date()
-            
-            if v_date == a_date:
-                return '✅ Dentro do Prazo'
-            elif v_date > a_date:
-                return '❌ Depois do Prazo'
-            else:
-                return '🚀 Antecipado'
+            if v_date == a_date: return '✅ Dentro do Prazo'
+            elif v_date > a_date: return '❌ Depois do Prazo'
+            else: return '🚀 Antecipado'
         except:
             return '➖ Erro no Cálculo'
 
@@ -321,7 +305,7 @@ else:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ----------------------------------------------------
-    # 4. GRÁFICOS (Agora com interatividade ativada)
+    # 4. GRÁFICOS INTERATIVOS
     # ----------------------------------------------------
     def aplicar_estilo_grafico(fig):
         fig.update_layout(
@@ -340,13 +324,10 @@ else:
         if ranking_clientes == "Top 10 Clientes": df_cliente = df_cliente.tail(10)
         elif ranking_clientes == "Top 5 Clientes": df_cliente = df_cliente.tail(5)
         elif ranking_clientes == "Top 3 Clientes": df_cliente = df_cliente.tail(3)
-        else: df_cliente = df_cliente.tail(10)
         df_cliente['Valor_Formatado'] = df_cliente['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
         fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
         fig_cliente.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
         fig_cliente = aplicar_estilo_grafico(fig_cliente)
-        
-        # Adicionada a captura do clique no gráfico
         evento_cliente = st.plotly_chart(fig_cliente, use_container_width=True, on_select="rerun")
 
     with col_graf2:
@@ -354,13 +335,10 @@ else:
         if ranking_restaurantes == "Top 10 Restaurantes": df_rest = df_rest.tail(10)
         elif ranking_restaurantes == "Top 5 Restaurantes": df_rest = df_rest.tail(5)
         elif ranking_restaurantes == "Top 3 Restaurantes": df_rest = df_rest.tail(3)
-        else: df_rest = df_rest.tail(10)
         df_rest['Valor_Formatado'] = df_rest['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
         fig_rest = px.bar(df_rest, x='Valor_Faturamento', y='Restaurante', orientation='h', title='Faturamento por Restaurante', text='Valor_Formatado', color_discrete_sequence=['#e67e22'])
         fig_rest.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
         fig_rest = aplicar_estilo_grafico(fig_rest)
-        
-        # Adicionada a captura do clique no gráfico
         evento_rest = st.plotly_chart(fig_rest, use_container_width=True, on_select="rerun")
 
     col_graf3, col_graf4 = st.columns(2)
@@ -368,54 +346,48 @@ else:
     with col_graf3:
         if 'Mes_Ano_Faturamento' in df_filtrado.columns:
             df_tempo = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data'].copy()
-            df_tempo = df_tempo.groupby('Mes_Ano_Faturamento', as_index=False)['Valor_Faturamento'].sum()
             df_tempo['Data_Ordenacao'] = pd.to_datetime(df_tempo['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
-            df_tempo = df_tempo.sort_values('Data_Ordenacao')
+            df_tempo = df_tempo.groupby(['Mes_Ano_Faturamento', 'Data_Ordenacao'], as_index=False)['Valor_Faturamento'].sum().sort_values('Data_Ordenacao')
             df_tempo['Valor_Texto'] = df_tempo['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             
             fig_tempo = px.area(df_tempo, x='Mes_Ano_Faturamento', y='Valor_Faturamento', title='Evolução por Mês/Ano', markers=True, text='Valor_Texto', color_discrete_sequence=['#2ecc71'])
             fig_tempo.update_traces(line_shape='spline', textposition='top center', textfont=dict(color='white', size=12))
             fig_tempo = aplicar_estilo_grafico(fig_tempo)
-            if not df_tempo.empty:
-                max_val = df_tempo['Valor_Faturamento'].max()
-                fig_tempo.update_layout(yaxis=dict(range=[0, max_val * 1.2]))
-            
-            # Adicionada a captura do clique no gráfico
+            # Garante que o eixo X siga a ordem cronológica
+            fig_tempo.update_xaxes(type='category', categoryorder='array', categoryarray=df_tempo['Mes_Ano_Faturamento'])
             evento_tempo = st.plotly_chart(fig_tempo, use_container_width=True, on_select="rerun")
 
     with col_graf4:
         if 'Mes_Ano_Faturamento' in df_filtrado.columns and 'Carteira' in df_filtrado.columns:
-            df_carteira = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data'].copy()
-            df_carteira = df_carteira.groupby(['Mes_Ano_Faturamento', 'Carteira'], as_index=False)['Valor_Faturamento'].sum()
-            df_carteira['Data_Ordenacao'] = pd.to_datetime(df_carteira['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
-            df_carteira['Valor_Texto'] = df_carteira['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            fig_carteira = px.line(df_carteira, x='Mes_Ano_Faturamento', y='Valor_Faturamento', color='Carteira', 
-                               title='Evolução por Carteira', markers=True, text='Valor_Texto')
+            df_cart_plot = df_filtrado[df_filtrado['Mes_Ano_Faturamento'] != 'Sem Data'].copy()
+            df_cart_plot['Data_Ordenacao'] = pd.to_datetime(df_cart_plot['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
+            df_cart_plot = df_cart_plot.groupby(['Mes_Ano_Faturamento', 'Data_Ordenacao', 'Carteira'], as_index=False)['Valor_Faturamento'].sum().sort_values('Data_Ordenacao')
+            df_cart_plot['Valor_Texto'] = df_cart_plot['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+            
+            fig_carteira = px.line(df_cart_plot, x='Mes_Ano_Faturamento', y='Valor_Faturamento', color='Carteira', title='Evolução por Carteira', markers=True, text='Valor_Texto')
             fig_carteira.update_traces(textposition="top center", line_shape='spline', line=dict(width=3))
             fig_carteira = aplicar_estilo_grafico(fig_carteira)
-            st.plotly_chart(aplicar_estilo_grafico(fig_carteira), use_container_width=True)
+            fig_carteira.update_xaxes(type='category', categoryorder='array', categoryarray=df_cart_plot['Mes_Ano_Faturamento'].unique())
+            evento_carteira = st.plotly_chart(fig_carteira, use_container_width=True, on_select="rerun")
 
     # ----------------------------------------------------
-    # 5. TABELA DE DETALHAMENTO (Com filtros dinâmicos dos gráficos)
+    # 5. TABELA DE DETALHAMENTO (Com Cross-Filtering)
     # ----------------------------------------------------
     st.markdown("### 📋 Tabela de Dados")
     df_exibicao = df_filtrado.copy()
     
-    # ---- LÓGICA DE CROSS-FILTERING (Pega o que foi clicado nos gráficos) ----
-    clientes_selecionados = [pt['y'] for pt in evento_cliente.selection.get('points', [])] if evento_cliente and hasattr(evento_cliente, 'selection') and evento_cliente.selection else []
-    rests_selecionados = [pt['y'] for pt in evento_rest.selection.get('points', [])] if evento_rest and hasattr(evento_rest, 'selection') and evento_rest.selection else []
-    meses_selecionados = [pt['x'] for pt in evento_tempo.selection.get('points', [])] if evento_tempo and hasattr(evento_tempo, 'selection') and evento_tempo.selection else []
+    # Captura seleções dos gráficos
+    clientes_sel = [pt['y'] for pt in evento_cliente.selection.get('points', [])] if evento_cliente and evento_cliente.selection else []
+    rests_sel = [pt['y'] for pt in evento_rest.selection.get('points', [])] if evento_rest and evento_rest.selection else []
+    meses_sel = [pt['x'] for pt in evento_tempo.selection.get('points', [])] if evento_tempo and evento_tempo.selection else []
+    carteiras_sel = [pt['customdata'][0] if 'customdata' in pt else None for pt in evento_carteira.selection.get('points', [])] if evento_carteira and evento_carteira.selection else []
 
-    if clientes_selecionados:
-        df_exibicao = df_exibicao[df_exibicao['Cliente'].isin(clientes_selecionados)]
-    if rests_selecionados:
-        df_exibicao = df_exibicao[df_exibicao['Restaurante'].isin(rests_selecionados)]
-    if meses_selecionados and 'Mes_Ano_Faturamento' in df_exibicao.columns:
-        df_exibicao = df_exibicao[df_exibicao['Mes_Ano_Faturamento'].isin(meses_selecionados)]
-    # -------------------------------------------------------------------------
+    if clientes_sel: df_exibicao = df_exibicao[df_exibicao['Cliente'].isin(clientes_sel)]
+    if rests_sel: df_exibicao = df_exibicao[df_exibicao['Restaurante'].isin(rests_sel)]
+    if meses_sel: df_exibicao = df_exibicao[df_exibicao['Mes_Ano_Faturamento'].isin(meses_sel)]
+    if any(carteiras_sel): df_exibicao = df_exibicao[df_exibicao['Carteira'].isin(carteiras_sel)]
 
     cols = list(df_exibicao.columns)
-    
     for c in ['Tempo', 'Fat x Venc', 'Validação', 'Validação do Vencimento']:
         if c in cols: cols.remove(c)
     
@@ -439,16 +411,15 @@ else:
 
     df_exibicao = df_exibicao[cols]
 
-    # Removi a formatação de STRING que quebrava a ordenação!
-    # A formatação passa a ser nativa dentro do próprio componente st.dataframe
-
-    # Configuração de colunas para formatação correta preservando o tipo real para a ordenação matemática e cronológica
+    # CONFIGURAÇÃO DE COLUNAS: Formata Moeda BR e Datas sem quebrar a ordenação
     config_colunas = {
         "Valor_Faturamento": st.column_config.NumberColumn("Valor Faturamento", format="R$ %.2f"),
         "Fim_Medição": st.column_config.DateColumn("Fim Medição", format="DD/MM/YYYY"),
         "Data_Faturamento": st.column_config.DateColumn("Data Faturamento", format="DD/MM/YYYY"),
         col_venc: st.column_config.DateColumn("Data Vencimento", format="DD/MM/YYYY"),
         "Inicio_Medição": st.column_config.DateColumn("Início Medição", format="DD/MM/YYYY"),
+        "Tempo": st.column_config.NumberColumn("Tempo", format="%d dias"),
+        "Fat x Venc": st.column_config.NumberColumn("Fat x Venc", format="%d dias")
     }
 
     st.dataframe(
