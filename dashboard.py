@@ -229,7 +229,6 @@ except Exception as e:
 # ----------------------------------------------------
 st.sidebar.title("Filtros do Painel")
 
-# --- SOLICITAÇÃO 4: Botão de Recarregar ---
 if st.sidebar.button("🔄 Recarregar Dados"):
     st.cache_data.clear()
     st.rerun()
@@ -395,7 +394,6 @@ else:
     st.markdown("### 📋 Tabela de Dados")
     df_exibicao = df_filtrado.copy()
     
-    # Captura seleções para Cross-Filtering
     clientes_sel = [pt['y'] for pt in evento_cliente.selection.get('points', [])] if evento_cliente and evento_cliente.selection else []
     rests_sel = [pt['y'] for pt in evento_rest.selection.get('points', [])] if evento_rest and evento_rest.selection else []
     meses_sel = [pt['x'] for pt in evento_tempo.selection.get('points', [])] if evento_tempo and evento_tempo.selection else []
@@ -430,31 +428,57 @@ else:
 
     df_exibicao = df_exibicao[cols]
 
-    # --- SOLICITAÇÃO 2 e 3: Botões de Ação Profissionais ---
+    # --- BOTÕES DE AÇÃO ---
     col_btn1, col_btn2, col_btn3, col_btn4 = st.columns([2, 2, 2, 4])
     
     with col_btn1:
-        # Exportar para Excel
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df_exibicao.to_excel(writer, index=False, sheet_name='Faturamento')
-        st.download_button(
-            label="📥 Exportar Excel",
-            data=output.getvalue(),
-            file_name=f"faturamento_{datetime.date.today()}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        try:
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df_exibicao.to_excel(writer, index=False, sheet_name='Faturamento')
+            st.download_button(
+                label="📥 Exportar Excel",
+                data=output.getvalue(),
+                file_name=f"faturamento_{datetime.date.today()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        except:
+            st.error("Verifique o openpyxl no requirements.txt")
 
     with col_btn2:
-        # PDF da Página Completa
         st.button("📄 PDF Página", on_click=lambda: st.components.v1.html("<script>window.print();</script>", height=0))
 
     with col_btn3:
-        # PDF da Tabela (Instrução Profissional)
+        # CORREÇÃO DO PDF DA TABELA USANDO HTML E JS
         if st.button("📋 PDF Tabela"):
-            st.info("Para salvar apenas a tabela: Clique em 'Exportar Excel' ou use Ctrl+P e selecione 'Apenas Seleção'.")
+            # Converte o DF atual para HTML para o JS processar
+            df_html = df_exibicao.copy()
+            if 'Valor_Faturamento' in df_html.columns:
+                df_html['Valor_Faturamento'] = df_html['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+            
+            for d_col in ['Fim_Medição', 'Data_Faturamento', col_venc, 'Inicio_Medição']:
+                if d_col in df_html.columns:
+                    df_html[d_col] = df_html[d_col].dt.strftime('%d/%m/%Y')
 
-    # --- SOLICITAÇÃO 1: Formato de Moeda R$ 78.282,02 ---
+            html_table = df_html.to_html(index=False, classes='mystyle')
+            
+            # Script que cria uma janela temporária só com a tabela e manda imprimir
+            pdf_script = f"""
+            <script>
+                var win = window.open('', '', 'height=700,width=900');
+                win.document.write('<html><head><title>Tabela de Faturamento</title>');
+                win.document.write('<style>table {{ border-collapse: collapse; width: 100%; font-family: sans-serif; font-size: 10px; }} th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; }} th {{ background-color: #f2f2f2; }}</style>');
+                win.document.write('</head><body>');
+                win.document.write('<h2>Detalhamento da Tabela</h2>');
+                win.document.write('{html_table.replace("'", "\\'").replace("\\n", "")}');
+                win.document.write('</body></html>');
+                win.document.close();
+                win.print();
+            </script>
+            """
+            st.components.v1.html(pdf_script, height=0)
+
+    # --- CONFIGURAÇÃO DA TABELA VISUAL ---
     config_colunas = {
         "Valor_Faturamento": st.column_config.NumberColumn("Valor Faturamento", format="R$ %.2f", width="medium"),
         "Fim_Medição": st.column_config.DateColumn("Fim Medição", format="DD/MM/YYYY"),
