@@ -440,42 +440,49 @@ else:
             st.error(f"Erro Excel: {e}")
 
     with col_btn2:
-        # FUNÇÃO PARA GERAR PDF (Substitui o JavaScript que não funcionava)
         def gerar_pdf_fpdf(df_input):
+            # Import interno para garantir que a biblioteca seja chamada apenas no clique
             from fpdf import FPDF
+            
+            # Criar objeto PDF (L = Paisagem)
             pdf = FPDF(orientation='L', unit='mm', format='A4')
             pdf.add_page()
             pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, "Relatorio de Faturamento - Tabela Completa", ln=True, align='C')
+            pdf.cell(0, 10, "Relatorio de Faturamento", ln=True, align='C')
             pdf.ln(5)
             
-            # Seleciona as primeiras 10 colunas para caber na folha A4 Paisagem
+            # Seleciona colunas que cabem no PDF
             cols_print = df_input.columns.tolist()[:10]
             
-            # Cabeçalho da Tabela
+            # Cabeçalho
             pdf.set_font("Arial", 'B', 8)
             for col in cols_print:
                 pdf.cell(27, 8, str(col)[:15], 1, 0, 'C')
             pdf.ln()
             
-            # Dados da Tabela
+            # Dados
             pdf.set_font("Arial", size=7)
             for _, row in df_input.head(200).iterrows():
                 for col in cols_print:
-                    pdf.cell(27, 6, str(row[col])[:18], 1)
+                    # Limpa o valor para string simples para evitar erro de caractere no PDF
+                    val = str(row[col]).encode('latin-1', 'ignore').decode('latin-1')
+                    pdf.cell(27, 6, val[:18], 1)
                 pdf.ln()
             return pdf.output()
 
         try:
-            pdf_output = gerar_pdf_fpdf(df_exibicao)
+            # Gerar o PDF e criar o botão de download nativo
+            pdf_bytes = gerar_pdf_fpdf(df_exibicao)
             st.download_button(
                 label="📋 PDF Tabela",
-                data=pdf_output,
-                file_name=f"tabela_faturamento_{datetime.date.today()}.pdf",
-                mime="application/pdf"
+                data=pdf_bytes,
+                file_name=f"faturamento_{datetime.date.today()}.pdf",
+                mime="application/pdf",
+                key="btn_pdf_faturamento"
             )
         except Exception as e:
-            st.error("Erro ao gerar PDF. Verifique se a biblioteca 'fpdf2' está instalada.")
+            # Isso vai nos mostrar o erro real se a biblioteca ainda não subiu
+            st.error(f"Erro ao gerar: {e}")
 
     # --- TABELA VISUAL (Indentada corretamente com 4 espaços) ---
     config_colunas = {
