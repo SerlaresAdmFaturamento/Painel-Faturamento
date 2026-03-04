@@ -413,22 +413,25 @@ else:
     col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 6])
     
     with col_btn1:
-        # Exportar para Excel - Corrigido
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df_exibicao.to_excel(writer, index=False, sheet_name='Faturamento')
-        st.download_button(
-            label="📥 Exportar Excel",
-            data=output.getvalue(),
-            file_name=f"faturamento_{datetime.date.today()}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        # Exportar para Excel - Lógica Robusta
+        try:
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df_exibicao.to_excel(writer, index=False, sheet_name='Faturamento')
+            st.download_button(
+                label="📥 Exportar Excel",
+                data=output.getvalue(),
+                file_name=f"faturamento_{datetime.date.today()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        except Exception as e:
+            st.error(f"Erro ao gerar Excel: {e}")
 
     with col_btn2:
-        # PDF da Tabela - Corrigido para gerar PDF da 1° à última coluna/linha
+        # PDF da Tabela - Gerando apenas a tabela completa
         if st.button("📋 PDF Tabela"):
-            # Preparação dos dados para o HTML do PDF
             df_html = df_exibicao.copy()
+            # Formatação manual de moeda e data para o HTML do PDF
             if 'Valor_Faturamento' in df_html.columns:
                 df_html['Valor_Faturamento'] = df_html['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             
@@ -440,20 +443,21 @@ else:
             
             pdf_script = f"""
             <script>
-                var win = window.open('', '', 'height=700,width=1000');
-                win.document.write('<html><head><title>Relatório de Faturamento</title>');
-                win.document.write('<style>table {{ border-collapse: collapse; width: 100%; font-family: sans-serif; font-size: 10px; }} th, td {{ border: 1px solid #ccc; padding: 6px; text-align: left; }} th {{ background-color: #f2f2f2; }}</style>');
+                var win = window.open('', '', 'height=700,width=1100');
+                win.document.write('<html><head><title>Tabela de Faturamento</title>');
+                win.document.write('<style>table {{ border-collapse: collapse; width: 100%; font-family: sans-serif; font-size: 9px; }} th, td {{ border: 1px solid #ddd; padding: 4px; text-align: left; }} th {{ background-color: #f2f2f2; font-weight: bold; }}</style>');
                 win.document.write('</head><body>');
-                win.document.write('<h2>Tabela de Faturamento - Completa</h2>');
+                win.document.write('<h2>Relatório de Faturamento - Tabela Completa</h2>');
                 win.document.write('{html_content.replace("'", "\\'").replace("\\n", "")}');
                 win.document.write('</body></html>');
                 win.document.close();
+                win.focus();
                 win.print();
             </script>
             """
             st.components.v1.html(pdf_script, height=0)
 
-    # --- CONFIGURAÇÃO DA TABELA VISUAL ---
+    # --- TABELA VISUAL ---
     config_colunas = {
         "Valor_Faturamento": st.column_config.NumberColumn("Valor Faturamento", format="R$ %.2f", width="medium"),
         "Fim_Medição": st.column_config.DateColumn("Fim Medição", format="DD/MM/YYYY"),
