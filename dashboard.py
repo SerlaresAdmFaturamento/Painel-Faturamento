@@ -45,7 +45,6 @@ st.markdown("""
     div[data-testid="stMetricValue"] {
         color: #ffffff !important;
     }
-    /* Estilo para botões de ação */
     .stButton>button {
         width: 100%;
         border-radius: 5px;
@@ -324,7 +323,7 @@ else:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ----------------------------------------------------
-    # 4. GRÁFICOS INTERATIVOS
+    # 4. GRÁFICOS
     # ----------------------------------------------------
     def aplicar_estilo_grafico(fig):
         fig.update_layout(
@@ -346,8 +345,7 @@ else:
         df_cliente['Valor_Formatado'] = df_cliente['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
         fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
         fig_cliente.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
-        fig_cliente = aplicar_estilo_grafico(fig_cliente)
-        evento_cliente = st.plotly_chart(fig_cliente, use_container_width=True, on_select="rerun")
+        st.plotly_chart(aplicar_estilo_grafico(fig_cliente), use_container_width=True)
 
     with col_graf2:
         df_rest = df_filtrado.groupby('Restaurante', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
@@ -357,8 +355,7 @@ else:
         df_rest['Valor_Formatado'] = df_rest['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
         fig_rest = px.bar(df_rest, x='Valor_Faturamento', y='Restaurante', orientation='h', title='Faturamento por Restaurante', text='Valor_Formatado', color_discrete_sequence=['#e67e22'])
         fig_rest.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
-        fig_rest = aplicar_estilo_grafico(fig_rest)
-        evento_rest = st.plotly_chart(fig_rest, use_container_width=True, on_select="rerun")
+        st.plotly_chart(aplicar_estilo_grafico(fig_rest), use_container_width=True)
 
     col_graf3, col_graf4 = st.columns(2)
 
@@ -368,12 +365,9 @@ else:
             df_tempo['Data_Ordenacao'] = pd.to_datetime(df_tempo['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
             df_tempo = df_tempo.groupby(['Mes_Ano_Faturamento', 'Data_Ordenacao'], as_index=False)['Valor_Faturamento'].sum().sort_values('Data_Ordenacao')
             df_tempo['Valor_Texto'] = df_tempo['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            
             fig_tempo = px.area(df_tempo, x='Mes_Ano_Faturamento', y='Valor_Faturamento', title='Evolução por Mês/Ano', markers=True, text='Valor_Texto', color_discrete_sequence=['#2ecc71'])
             fig_tempo.update_traces(line_shape='spline', textposition='top center', textfont=dict(color='white', size=12))
-            fig_tempo = aplicar_estilo_grafico(fig_tempo)
-            fig_tempo.update_xaxes(type='category', categoryorder='array', categoryarray=df_tempo['Mes_Ano_Faturamento'])
-            evento_tempo = st.plotly_chart(fig_tempo, use_container_width=True, on_select="rerun")
+            st.plotly_chart(aplicar_estilo_grafico(fig_tempo), use_container_width=True)
 
     with col_graf4:
         if 'Mes_Ano_Faturamento' in df_filtrado.columns and 'Carteira' in df_filtrado.columns:
@@ -381,12 +375,9 @@ else:
             df_cart_plot['Data_Ordenacao'] = pd.to_datetime(df_cart_plot['Mes_Ano_Faturamento'], format='%m/%Y', errors='coerce')
             df_cart_plot = df_cart_plot.groupby(['Mes_Ano_Faturamento', 'Data_Ordenacao', 'Carteira'], as_index=False)['Valor_Faturamento'].sum().sort_values('Data_Ordenacao')
             df_cart_plot['Valor_Texto'] = df_cart_plot['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            
             fig_carteira = px.line(df_cart_plot, x='Mes_Ano_Faturamento', y='Valor_Faturamento', color='Carteira', title='Evolução por Carteira', markers=True, text='Valor_Texto')
             fig_carteira.update_traces(textposition="top center", line_shape='spline', line=dict(width=3))
-            fig_carteira = aplicar_estilo_grafico(fig_carteira)
-            fig_carteira.update_xaxes(type='category', categoryorder='array', categoryarray=df_cart_plot['Mes_Ano_Faturamento'].unique())
-            evento_carteira = st.plotly_chart(fig_carteira, use_container_width=True, on_select="rerun")
+            st.plotly_chart(aplicar_estilo_grafico(fig_carteira), use_container_width=True)
 
     # ----------------------------------------------------
     # 5. TABELA DE DETALHAMENTO
@@ -394,16 +385,6 @@ else:
     st.markdown("### 📋 Tabela de Dados")
     df_exibicao = df_filtrado.copy()
     
-    clientes_sel = [pt['y'] for pt in evento_cliente.selection.get('points', [])] if evento_cliente and evento_cliente.selection else []
-    rests_sel = [pt['y'] for pt in evento_rest.selection.get('points', [])] if evento_rest and evento_rest.selection else []
-    meses_sel = [pt['x'] for pt in evento_tempo.selection.get('points', [])] if evento_tempo and evento_tempo.selection else []
-    carteiras_sel = [pt['customdata'][0] if 'customdata' in pt else None for pt in evento_carteira.selection.get('points', [])] if evento_carteira and evento_carteira.selection else []
-
-    if clientes_sel: df_exibicao = df_exibicao[df_exibicao['Cliente'].isin(clientes_sel)]
-    if rests_sel: df_exibicao = df_exibicao[df_exibicao['Restaurante'].isin(rests_sel)]
-    if meses_sel: df_exibicao = df_exibicao[df_exibicao['Mes_Ano_Faturamento'].isin(meses_sel)]
-    if any(carteiras_sel): df_exibicao = df_exibicao[df_exibicao['Carteira'].isin(carteiras_sel)]
-
     cols = list(df_exibicao.columns)
     for c in ['Tempo', 'Fat x Venc', 'Validação', 'Validação do Vencimento']:
         if c in cols: cols.remove(c)
@@ -429,48 +410,42 @@ else:
     df_exibicao = df_exibicao[cols]
 
     # --- BOTÕES DE AÇÃO ---
-    col_btn1, col_btn2, col_btn3, col_btn4 = st.columns([2, 2, 2, 4])
+    col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 6])
     
     with col_btn1:
-        try:
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df_exibicao.to_excel(writer, index=False, sheet_name='Faturamento')
-            st.download_button(
-                label="📥 Exportar Excel",
-                data=output.getvalue(),
-                file_name=f"faturamento_{datetime.date.today()}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        except:
-            st.error("Verifique o openpyxl no requirements.txt")
+        # Exportar para Excel - Corrigido
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df_exibicao.to_excel(writer, index=False, sheet_name='Faturamento')
+        st.download_button(
+            label="📥 Exportar Excel",
+            data=output.getvalue(),
+            file_name=f"faturamento_{datetime.date.today()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
     with col_btn2:
-        st.button("📄 PDF Página", on_click=lambda: st.components.v1.html("<script>window.print();</script>", height=0))
-
-    with col_btn3:
-        # CORREÇÃO DO PDF DA TABELA USANDO HTML E JS
+        # PDF da Tabela - Corrigido para gerar PDF da 1° à última coluna/linha
         if st.button("📋 PDF Tabela"):
-            # Converte o DF atual para HTML para o JS processar
+            # Preparação dos dados para o HTML do PDF
             df_html = df_exibicao.copy()
             if 'Valor_Faturamento' in df_html.columns:
                 df_html['Valor_Faturamento'] = df_html['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             
             for d_col in ['Fim_Medição', 'Data_Faturamento', col_venc, 'Inicio_Medição']:
                 if d_col in df_html.columns:
-                    df_html[d_col] = df_html[d_col].dt.strftime('%d/%m/%Y')
+                    df_html[d_col] = pd.to_datetime(df_html[d_col]).dt.strftime('%d/%m/%Y')
 
-            html_table = df_html.to_html(index=False, classes='mystyle')
+            html_content = df_html.to_html(index=False)
             
-            # Script que cria uma janela temporária só com a tabela e manda imprimir
             pdf_script = f"""
             <script>
-                var win = window.open('', '', 'height=700,width=900');
-                win.document.write('<html><head><title>Tabela de Faturamento</title>');
-                win.document.write('<style>table {{ border-collapse: collapse; width: 100%; font-family: sans-serif; font-size: 10px; }} th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; }} th {{ background-color: #f2f2f2; }}</style>');
+                var win = window.open('', '', 'height=700,width=1000');
+                win.document.write('<html><head><title>Relatório de Faturamento</title>');
+                win.document.write('<style>table {{ border-collapse: collapse; width: 100%; font-family: sans-serif; font-size: 10px; }} th, td {{ border: 1px solid #ccc; padding: 6px; text-align: left; }} th {{ background-color: #f2f2f2; }}</style>');
                 win.document.write('</head><body>');
-                win.document.write('<h2>Detalhamento da Tabela</h2>');
-                win.document.write('{html_table.replace("'", "\\'").replace("\\n", "")}');
+                win.document.write('<h2>Tabela de Faturamento - Completa</h2>');
+                win.document.write('{html_content.replace("'", "\\'").replace("\\n", "")}');
                 win.document.write('</body></html>');
                 win.document.close();
                 win.print();
