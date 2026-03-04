@@ -321,7 +321,7 @@ else:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ----------------------------------------------------
-    # 4. GRÁFICOS
+    # 4. GRÁFICOS (Agora com interatividade ativada)
     # ----------------------------------------------------
     def aplicar_estilo_grafico(fig):
         fig.update_layout(
@@ -345,7 +345,9 @@ else:
         fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
         fig_cliente.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
         fig_cliente = aplicar_estilo_grafico(fig_cliente)
-        st.plotly_chart(fig_cliente, use_container_width=True)
+        
+        # Adicionada a captura do clique no gráfico
+        evento_cliente = st.plotly_chart(fig_cliente, use_container_width=True, on_select="rerun")
 
     with col_graf2:
         df_rest = df_filtrado.groupby('Restaurante', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
@@ -357,7 +359,9 @@ else:
         fig_rest = px.bar(df_rest, x='Valor_Faturamento', y='Restaurante', orientation='h', title='Faturamento por Restaurante', text='Valor_Formatado', color_discrete_sequence=['#e67e22'])
         fig_rest.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
         fig_rest = aplicar_estilo_grafico(fig_rest)
-        st.plotly_chart(fig_rest, use_container_width=True)
+        
+        # Adicionada a captura do clique no gráfico
+        evento_rest = st.plotly_chart(fig_rest, use_container_width=True, on_select="rerun")
 
     col_graf3, col_graf4 = st.columns(2)
 
@@ -375,7 +379,9 @@ else:
             if not df_tempo.empty:
                 max_val = df_tempo['Valor_Faturamento'].max()
                 fig_tempo.update_layout(yaxis=dict(range=[0, max_val * 1.2]))
-            st.plotly_chart(fig_tempo, use_container_width=True)
+            
+            # Adicionada a captura do clique no gráfico
+            evento_tempo = st.plotly_chart(fig_tempo, use_container_width=True, on_select="rerun")
 
     with col_graf4:
         if 'Mes_Ano_Faturamento' in df_filtrado.columns and 'Carteira' in df_filtrado.columns:
@@ -389,18 +395,30 @@ else:
             fig_carteira = aplicar_estilo_grafico(fig_carteira)
             st.plotly_chart(aplicar_estilo_grafico(fig_carteira), use_container_width=True)
 
-# ----------------------------------------------------
-    # 5. TABELA DE DETALHAMENTO (AJUSTADA PARA ORDENAÇÃO)
+    # ----------------------------------------------------
+    # 5. TABELA DE DETALHAMENTO (Com filtros dinâmicos dos gráficos)
     # ----------------------------------------------------
     st.markdown("### 📋 Tabela de Dados")
     df_exibicao = df_filtrado.copy()
+    
+    # ---- LÓGICA DE CROSS-FILTERING (Pega o que foi clicado nos gráficos) ----
+    clientes_selecionados = [pt['y'] for pt in evento_cliente.selection.get('points', [])] if evento_cliente and hasattr(evento_cliente, 'selection') and evento_cliente.selection else []
+    rests_selecionados = [pt['y'] for pt in evento_rest.selection.get('points', [])] if evento_rest and hasattr(evento_rest, 'selection') and evento_rest.selection else []
+    meses_selecionados = [pt['x'] for pt in evento_tempo.selection.get('points', [])] if evento_tempo and hasattr(evento_tempo, 'selection') and evento_tempo.selection else []
+
+    if clientes_selecionados:
+        df_exibicao = df_exibicao[df_exibicao['Cliente'].isin(clientes_selecionados)]
+    if rests_selecionados:
+        df_exibicao = df_exibicao[df_exibicao['Restaurante'].isin(rests_selecionados)]
+    if meses_selecionados and 'Mes_Ano_Faturamento' in df_exibicao.columns:
+        df_exibicao = df_exibicao[df_exibicao['Mes_Ano_Faturamento'].isin(meses_selecionados)]
+    # -------------------------------------------------------------------------
+
     cols = list(df_exibicao.columns)
     
-    # Remove colunas que serão reinseridas em posições específicas
     for c in ['Tempo', 'Fat x Venc', 'Validação', 'Validação do Vencimento']:
         if c in cols: cols.remove(c)
     
-    # Reposicionamento de colunas conforme lógica original
     if 'Data_Faturamento' in cols:
         idx_fat = cols.index('Data_Faturamento')
         if 'Tempo' in df_filtrado.columns:
@@ -421,22 +439,22 @@ else:
 
     df_exibicao = df_exibicao[cols]
 
-    # --- RESOLUÇÃO DO FORMATO DE MOEDA BR (SÓ ISSO) ---
-    if 'Valor_Faturamento' in df_exibicao.columns:
-        df_exibicao['Valor_Faturamento'] = df_exibicao['Valor_Faturamento'].apply(
-            lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-        )
+    # Removi a formatação de STRING que quebrava a ordenação!
+    # A formatação passa a ser nativa dentro do próprio componente st.dataframe
 
-    # --- FORMATO DE DATA BR ---
-    colunas_data_exibir = ['Fim_Medição', 'Data_Faturamento', col_venc, 'Inicio_Medição']
-    for col in colunas_data_exibir:
-        if col in df_exibicao.columns:
-            df_exibicao[col] = df_exibicao[col].dt.strftime('%d/%m/%Y').fillna('-')
+    # Configuração de colunas para formatação correta preservando o tipo real para a ordenação matemática e cronológica
+    config_colunas = {
+        "Valor_Faturamento": st.column_config.NumberColumn("Valor Faturamento", format="R$ %.2f"),
+        "Fim_Medição": st.column_config.DateColumn("Fim Medição", format="DD/MM/YYYY"),
+        "Data_Faturamento": st.column_config.DateColumn("Data Faturamento", format="DD/MM/YYYY"),
+        col_venc: st.column_config.DateColumn("Data Vencimento", format="DD/MM/YYYY"),
+        "Inicio_Medição": st.column_config.DateColumn("Início Medição", format="DD/MM/YYYY"),
+    }
 
-    # Exibe o dataframe diretamente (sem column_config para não dar erro de tipo)
     st.dataframe(
         df_exibicao, 
         use_container_width=True, 
         height=800, 
-        hide_index=True
+        hide_index=True,
+        column_config=config_colunas
     )
