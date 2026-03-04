@@ -443,18 +443,31 @@ else:
         def gerar_pdf_profissional(df_input):
             from fpdf import FPDF
             
-            # Lista das colunas que você solicitou
-            colunas_alvo = ["Restaurante", "Cliente", "Inicio_Medição", "Fim_Medição", "Período_Medição", "Prazo", "Dia"]
+            # 1. Definir o mapeamento de nomes (De: Nome no código -> Para: Nome no PDF)
+            mapeamento_colunas = {
+                "Restaurante": "Restaurante",
+                "Cliente": "Cliente",
+                "Inicio_Medição": "Inicio Medição",
+                "Fim_Medição": "Fim Medição",
+                "Período_Medição": "Período Medição",
+                "Prazo": "Prazo de Vencimento",
+                "Dia": "Dia de Vencimento"
+            }
             
-            # Filtrar apenas as colunas que existem no dataframe (evita erro de digitação)
-            cols_existentes = [c for c in colunas_alvo if c in df_input.columns]
-            df_pdf = df_input[cols_existentes].head(200)
+            # Filtrar apenas as colunas que existem
+            cols_originais = [c for c in mapeamento_colunas.keys() if c in df_input.columns]
+            df_pdf = df_input[cols_originais].copy().head(200)
+
+            # 2. Formatar as DATAS para o padrão brasileiro (DD/MM/YYYY)
+            for col_data in ["Inicio_Medição", "Fim_Medição"]:
+                if col_data in df_pdf.columns:
+                    df_pdf[col_data] = pd.to_datetime(df_pdf[col_data]).dt.strftime('%d/%m/%Y')
 
             pdf = FPDF(orientation='L', unit='mm', format='A4')
             pdf.add_page()
             
             # --- CABEÇALHO DO DOCUMENTO ---
-            pdf.set_fill_color(44, 62, 80)  # Azul Escuro (mesmo do seu dashboard)
+            pdf.set_fill_color(44, 62, 80)
             pdf.rect(0, 0, 297, 30, 'F') 
             pdf.set_text_color(255, 255, 255)
             pdf.set_font("Arial", 'B', 16)
@@ -464,14 +477,26 @@ else:
             pdf.ln(10)
 
             # --- CABEÇALHO DA TABELA ---
-            pdf.set_font("Arial", 'B', 9)
-            pdf.set_fill_color(52, 152, 219) # Azul Claro
+            pdf.set_font("Arial", 'B', 8)
+            pdf.set_fill_color(52, 152, 219)
             pdf.set_text_color(255, 255, 255)
             
-            largura_col = 280 / len(cols_existentes) if cols_existentes else 30
+            # Definir larguras específicas para caber os nomes maiores
+            # Total largura A4 Paisagem útil aprox 280mm
+            larguras = {
+                "Restaurante": 35,
+                "Cliente": 60,
+                "Inicio_Medição": 30,
+                "Fim_Medição": 30,
+                "Período_Medição": 45,
+                "Prazo": 40,
+                "Dia": 40
+            }
             
-            for col in cols_existentes:
-                pdf.cell(largura_col, 10, col.replace("_", " "), 1, 0, 'C', True)
+            for col in cols_originais:
+                largura = larguras.get(col, 30)
+                nome_exibicao = mapeamento_colunas[col]
+                pdf.cell(largura, 10, nome_exibicao, 1, 0, 'C', True)
             pdf.ln()
 
             # --- DADOS (ZEBRADOS) ---
@@ -479,16 +504,17 @@ else:
             pdf.set_text_color(0, 0, 0)
             
             for i, (_, row) in enumerate(df_pdf.iterrows()):
-                # Efeito zebrado: muda a cor do fundo a cada linha
                 if i % 2 == 0:
                     pdf.set_fill_color(245, 245, 245)
                 else:
                     pdf.set_fill_color(255, 255, 255)
                 
-                for col in cols_existentes:
-                    # Trata o texto para evitar erros de caracteres especiais
-                    texto = str(row[col]).encode('latin-1', 'ignore').decode('latin-1')
-                    pdf.cell(largura_col, 8, texto[:20], 1, 0, 'C', True)
+                for col in cols_originais:
+                    largura = larguras.get(col, 30)
+                    # Trata o texto para evitar erros de caracteres e remove o .0 de números se houver
+                    valor = str(row[col]).replace('.0', '')
+                    texto = valor.encode('latin-1', 'ignore').decode('latin-1')
+                    pdf.cell(largura, 8, texto[:25], 1, 0, 'C', True)
                 pdf.ln()
 
             return bytes(pdf.output())
@@ -500,7 +526,7 @@ else:
                 data=pdf_bytes,
                 file_name=f"relatorio_faturamento_{datetime.date.today()}.pdf",
                 mime="application/pdf",
-                key="btn_pdf_pro"
+                key="btn_pdf_pro_final"
             )
         except Exception as e:
             st.error(f"Erro ao gerar PDF: {e}")
