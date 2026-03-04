@@ -323,7 +323,7 @@ else:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ----------------------------------------------------
-    # 4. GRÁFICOS
+    # 4. GRÁFICOS COM INTERAÇÃO (on_select="rerun")
     # ----------------------------------------------------
     def aplicar_estilo_grafico(fig):
         fig.update_layout(
@@ -345,7 +345,7 @@ else:
         df_cliente['Valor_Formatado'] = df_cliente['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
         fig_cliente = px.bar(df_cliente, x='Valor_Faturamento', y='Cliente', orientation='h', title='Faturamento por Cliente', text='Valor_Formatado', color_discrete_sequence=['#3498db'])
         fig_cliente.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
-        st.plotly_chart(aplicar_estilo_grafico(fig_cliente), use_container_width=True)
+        evento_cliente = st.plotly_chart(aplicar_estilo_grafico(fig_cliente), use_container_width=True, on_select="rerun")
 
     with col_graf2:
         df_rest = df_filtrado.groupby('Restaurante', as_index=False)['Valor_Faturamento'].sum().sort_values('Valor_Faturamento', ascending=True)
@@ -355,7 +355,7 @@ else:
         df_rest['Valor_Formatado'] = df_rest['Valor_Faturamento'].apply(lambda x: f"<b>R$ {x:,.2f}</b>".replace(",", "X").replace(".", ",").replace("X", "."))
         fig_rest = px.bar(df_rest, x='Valor_Faturamento', y='Restaurante', orientation='h', title='Faturamento por Restaurante', text='Valor_Formatado', color_discrete_sequence=['#e67e22'])
         fig_rest.update_traces(textposition='inside', textfont_size=16, textfont_color='white')
-        st.plotly_chart(aplicar_estilo_grafico(fig_rest), use_container_width=True)
+        evento_rest = st.plotly_chart(aplicar_estilo_grafico(fig_rest), use_container_width=True, on_select="rerun")
 
     col_graf3, col_graf4 = st.columns(2)
 
@@ -367,7 +367,7 @@ else:
             df_tempo['Valor_Texto'] = df_tempo['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             fig_tempo = px.area(df_tempo, x='Mes_Ano_Faturamento', y='Valor_Faturamento', title='Evolução por Mês/Ano', markers=True, text='Valor_Texto', color_discrete_sequence=['#2ecc71'])
             fig_tempo.update_traces(line_shape='spline', textposition='top center', textfont=dict(color='white', size=12))
-            st.plotly_chart(aplicar_estilo_grafico(fig_tempo), use_container_width=True)
+            evento_tempo = st.plotly_chart(aplicar_estilo_grafico(fig_tempo), use_container_width=True, on_select="rerun")
 
     with col_graf4:
         if 'Mes_Ano_Faturamento' in df_filtrado.columns and 'Carteira' in df_filtrado.columns:
@@ -377,14 +377,25 @@ else:
             df_cart_plot['Valor_Texto'] = df_cart_plot['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             fig_carteira = px.line(df_cart_plot, x='Mes_Ano_Faturamento', y='Valor_Faturamento', color='Carteira', title='Evolução por Carteira', markers=True, text='Valor_Texto')
             fig_carteira.update_traces(textposition="top center", line_shape='spline', line=dict(width=3))
-            st.plotly_chart(aplicar_estilo_grafico(fig_carteira), use_container_width=True)
+            evento_carteira = st.plotly_chart(aplicar_estilo_grafico(fig_carteira), use_container_width=True, on_select="rerun")
 
     # ----------------------------------------------------
-    # 5. TABELA DE DETALHAMENTO
+    # 5. TABELA DE DETALHAMENTO (Com Filtro de Seleção)
     # ----------------------------------------------------
     st.markdown("### 📋 Tabela de Dados")
     df_exibicao = df_filtrado.copy()
     
+    # Capturar pontos selecionados nos gráficos para filtrar a tabela
+    sel_clientes = [p['y'] for p in evento_cliente.selection.get('points', [])] if evento_cliente and 'selection' in evento_cliente else []
+    sel_rests = [p['y'] for p in evento_rest.selection.get('points', [])] if evento_rest and 'selection' in evento_rest else []
+    sel_meses = [p['x'] for p in evento_tempo.selection.get('points', [])] if evento_tempo and 'selection' in evento_tempo else []
+    sel_carteiras = [p['customdata'][0] if 'customdata' in p else None for p in evento_carteira.selection.get('points', [])] if evento_carteira and 'selection' in evento_carteira else []
+
+    if sel_clientes: df_exibicao = df_exibicao[df_exibicao['Cliente'].isin(sel_clientes)]
+    if sel_rests: df_exibicao = df_exibicao[df_exibicao['Restaurante'].isin(sel_rests)]
+    if sel_meses: df_exibicao = df_exibicao[df_exibicao['Mes_Ano_Faturamento'].isin(sel_meses)]
+    if any(sel_carteiras): df_exibicao = df_exibicao[df_exibicao['Carteira'].isin(sel_carteiras)]
+
     cols = list(df_exibicao.columns)
     for c in ['Tempo', 'Fat x Venc', 'Validação', 'Validação do Vencimento']:
         if c in cols: cols.remove(c)
@@ -413,7 +424,7 @@ else:
     col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 6])
     
     with col_btn1:
-        # Exportar para Excel - Lógica Robusta
+        # Exportar Excel - Mantido e Garantido
         try:
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -425,37 +436,49 @@ else:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         except Exception as e:
-            st.error(f"Erro ao gerar Excel: {e}")
+            st.error(f"Erro Excel: {e}")
 
     with col_btn2:
-        # PDF da Tabela - Gerando apenas a tabela completa
+        # BOTÃO PDF TABELA - CORREÇÃO DEFINITIVA (BAIXA O ARQUIVO)
         if st.button("📋 PDF Tabela"):
+            # Preparar o HTML para o gerador de PDF
             df_html = df_exibicao.copy()
-            # Formatação manual de moeda e data para o HTML do PDF
             if 'Valor_Faturamento' in df_html.columns:
                 df_html['Valor_Faturamento'] = df_html['Valor_Faturamento'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            
             for d_col in ['Fim_Medição', 'Data_Faturamento', col_venc, 'Inicio_Medição']:
                 if d_col in df_html.columns:
                     df_html[d_col] = pd.to_datetime(df_html[d_col]).dt.strftime('%d/%m/%Y')
-
-            html_content = df_html.to_html(index=False)
             
-            pdf_script = f"""
+            html_table = df_html.to_html(index=False, table_id="printTable")
+            
+            # Script JS que injeta bibliotecas via CDN e gera o download do PDF automaticamente
+            pdf_download_script = f"""
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
             <script>
-                var win = window.open('', '', 'height=700,width=1100');
-                win.document.write('<html><head><title>Tabela de Faturamento</title>');
-                win.document.write('<style>table {{ border-collapse: collapse; width: 100%; font-family: sans-serif; font-size: 9px; }} th, td {{ border: 1px solid #ddd; padding: 4px; text-align: left; }} th {{ background-color: #f2f2f2; font-weight: bold; }}</style>');
-                win.document.write('</head><body>');
-                win.document.write('<h2>Relatório de Faturamento - Tabela Completa</h2>');
-                win.document.write('{html_content.replace("'", "\\'").replace("\\n", "")}');
-                win.document.write('</body></html>');
-                win.document.close();
-                win.focus();
-                win.print();
+                (function() {{
+                    const {{ jsPDF }} = window.jspdf;
+                    const doc = new jsPDF('l', 'mm', 'a4');
+                    
+                    // Criação de uma div temporária para conter a tabela
+                    var container = document.createElement('div');
+                    container.innerHTML = '{html_table.replace("'", "\\'").replace("\\n", "")}';
+                    var table = container.querySelector('table');
+                    
+                    doc.text("Relatório de Faturamento - Tabela Completa", 14, 15);
+                    doc.autoTable({{ 
+                        html: table,
+                        startY: 20,
+                        styles: {{ fontSize: 7, cellPadding: 1 }},
+                        headStyles: {{ fillColor: [52, 152, 219] }}
+                    }});
+                    
+                    doc.save('tabela_faturamento.pdf');
+                }})();
             </script>
             """
-            st.components.v1.html(pdf_script, height=0)
+            st.components.v1.html(pdf_download_script, height=0)
+            st.success("O download do PDF foi iniciado!")
 
     # --- TABELA VISUAL ---
     config_colunas = {
