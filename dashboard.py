@@ -439,14 +439,32 @@ else:
         except Exception as e:
             st.error(f"Erro Excel: {e}")
 
+    # --- BOTÕES DE AÇÃO ---
+    col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 6])
+    
+    with col_btn1:
+        # Exportar Excel
+        try:
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df_exibicao.to_excel(writer, index=False, sheet_name='Faturamento')
+            st.download_button(
+                label="📥 Exportar Excel",
+                data=output.getvalue(),
+                file_name=f"faturamento_{datetime.date.today()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        except Exception as e:
+            st.error(f"Erro Excel: {e}")
+
     with col_btn2:
         def gerar_pdf_profissional_dinamico(df_input):
             from fpdf import FPDF
             
-            # 1. Suas colunas desejadas (pode estar em qualquer ordem no DF)
-            colunas_desejadas = ["Restaurante", "Cliente", "Inicio_Medição", "Fim_Medição", "Período_Medição", "Prazo", "Dia"]
+            # 1. Colunas que o usuário deseja (pode estar em qualquer ordem)
+            colunas_permitidas = ["Restaurante", "Cliente", "Inicio_Medição", "Fim_Medição", "Período_Medição", "Prazo", "Dia"]
             
-            # 2. MAPEAMENTO para nomes bonitos
+            # 2. Mapeamento para nomes amigáveis no PDF
             mapeamento_nomes = {
                 "Restaurante": "Restaurante",
                 "Cliente": "Cliente",
@@ -457,14 +475,16 @@ else:
                 "Dia": "Dia de Vencimento"
             }
 
-            # 3. PEGAR A ORDEM ATUAL: Filtramos o DF atual mantendo a ordem que ele já tem
-            # Isso garante que se o DF mudar a ordem das colunas, o PDF acompanha.
-            cols_na_ordem_atual = [c for c in df_input.columns if c in colunas_desejadas]
+            # 3. PEGAR A ORDEM ATUAL: Filtra as colunas permitidas baseando-se na ordem que aparecem no df_input
+            cols_na_ordem = [c for c in df_input.columns if c in colunas_permitidas]
             
-            # Criamos uma cópia apenas com as colunas que você quer, na ordem que elas aparecem
-            df_pdf = df_input[cols_na_ordem_atual].copy().head(200)
+            # Se por algum motivo a lista for vazia (ex: colunas renomeadas), usa as permitidas que existirem
+            if not cols_na_ordem:
+                cols_na_ordem = [c for c in colunas_permitidas if c in df_input.columns]
 
-            # 4. Formatar as DATAS
+            df_pdf = df_input[cols_na_ordem].copy().head(200)
+
+            # 4. Formatar DATAS para o padrão brasileiro
             for col_data in ["Inicio_Medição", "Fim_Medição"]:
                 if col_data in df_pdf.columns:
                     df_pdf[col_data] = pd.to_datetime(df_pdf[col_data]).dt.strftime('%d/%m/%Y')
@@ -487,12 +507,12 @@ else:
             pdf.set_fill_color(52, 152, 219)
             pdf.set_text_color(255, 255, 255)
             
-            # Largura dinâmica baseada no número de colunas (aprox 280mm úteis)
-            largura_padrao = 280 / len(cols_na_ordem_atual) if cols_na_ordem_atual else 40
+            largura_util = 275
+            largura_col = largura_util / len(cols_na_ordem) if cols_na_ordem else 30
             
-            for col in cols_na_ordem_atual:
-                nome_exibicao = mapeamento_nomes.get(col, col)
-                pdf.cell(largura_padrao, 10, nome_exibicao, 1, 0, 'C', True)
+            for col in cols_na_ordem:
+                nome_cabecalho = mapeamento_nomes.get(col, col)
+                pdf.cell(largura_col, 10, nome_cabecalho, 1, 0, 'C', True)
             pdf.ln()
 
             # --- DADOS (ZEBRADOS) ---
@@ -501,12 +521,10 @@ else:
             
             for i, (_, row) in enumerate(df_pdf.iterrows()):
                 pdf.set_fill_color(245, 245, 245) if i % 2 == 0 else pdf.set_fill_color(255, 255, 255)
-                
-                for col in cols_na_ordem_atual:
+                for col in cols_na_ordem:
                     valor = str(row[col]).replace('.0', '')
-                    # Limpeza de caracteres especiais para evitar erro no PDF
                     texto = valor.encode('latin-1', 'ignore').decode('latin-1')
-                    pdf.cell(largura_padrao, 8, texto[:25], 1, 0, 'C', True)
+                    pdf.cell(largura_col, 8, texto[:25], 1, 0, 'C', True)
                 pdf.ln()
 
             return bytes(pdf.output())
@@ -518,7 +536,7 @@ else:
                 data=pdf_bytes,
                 file_name=f"relatorio_faturamento_{datetime.date.today()}.pdf",
                 mime="application/pdf",
-                key="btn_pdf_dinamico"
+                key="btn_pdf_dynamic_final"
             )
         except Exception as e:
             st.error(f"Erro ao gerar PDF: {e}")
