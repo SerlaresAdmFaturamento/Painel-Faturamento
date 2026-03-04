@@ -425,7 +425,7 @@ else:
     col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 6])
     
     with col_btn1:
-        # Exportar Excel - Mantido e Garantido
+        # Exportar Excel
         try:
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -439,25 +439,29 @@ else:
         except Exception as e:
             st.error(f"Erro Excel: {e}")
 
-with col_btn2:
+    with col_btn2:
+        # FUNÇÃO PARA GERAR PDF (Substitui o JavaScript que não funcionava)
         def gerar_pdf_fpdf(df_input):
+            from fpdf import FPDF
             pdf = FPDF(orientation='L', unit='mm', format='A4')
             pdf.add_page()
-            pdf.set_font("Arial", 'B', 10)
-            pdf.cell(0, 10, "Relatorio de Faturamento", ln=True, align='C')
-            pdf.set_font("Arial", size=7)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 10, "Relatorio de Faturamento - Tabela Completa", ln=True, align='C')
+            pdf.ln(5)
             
-            # Seleciona as primeiras 10 colunas para caber na folha
-            cols_to_print = df_input.columns.tolist()[:10]
+            # Seleciona as primeiras 10 colunas para caber na folha A4 Paisagem
+            cols_print = df_input.columns.tolist()[:10]
             
-            # Cabeçalho
-            for col in cols_to_print:
-                pdf.cell(27, 8, str(col)[:15], 1)
+            # Cabeçalho da Tabela
+            pdf.set_font("Arial", 'B', 8)
+            for col in cols_print:
+                pdf.cell(27, 8, str(col)[:15], 1, 0, 'C')
             pdf.ln()
             
-            # Linhas
+            # Dados da Tabela
+            pdf.set_font("Arial", size=7)
             for _, row in df_input.head(200).iterrows():
-                for col in cols_to_print:
+                for col in cols_print:
                     pdf.cell(27, 6, str(row[col])[:18], 1)
                 pdf.ln()
             return pdf.output()
@@ -471,9 +475,9 @@ with col_btn2:
                 mime="application/pdf"
             )
         except Exception as e:
-            st.error("Erro ao gerar PDF. Certifique-se de que a biblioteca 'fpdf2' está instalada.")
+            st.error("Erro ao gerar PDF. Verifique se a biblioteca 'fpdf2' está instalada.")
 
-    # --- TABELA VISUAL ---
+    # --- TABELA VISUAL (Indentada corretamente com 4 espaços) ---
     config_colunas = {
         "Valor_Faturamento": st.column_config.NumberColumn("Valor Faturamento", format="R$ %.2f", width="medium"),
         "Fim_Medição": st.column_config.DateColumn("Fim Medição", format="DD/MM/YYYY"),
