@@ -5,6 +5,7 @@ import datetime
 import re
 import calendar
 import os
+import io
 
 # ----------------------------------------------------
 # FORÇAR MODO ESCURO NATIVO 
@@ -43,6 +44,20 @@ st.markdown("""
     }
     div[data-testid="stMetricValue"] {
         color: #ffffff !important;
+    }
+    /* Estilo para botões de ação */
+    .stButton>button {
+        width: 100%;
+        border-radius: 5px;
+        height: 3em;
+        background-color: #34495e;
+        color: white;
+        border: 1px solid #546e7a;
+        font-weight: bold;
+    }
+    .stButton>button:hover {
+        background-color: #3498db;
+        border-color: #3498db;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -214,6 +229,11 @@ except Exception as e:
 # ----------------------------------------------------
 st.sidebar.title("Filtros do Painel")
 
+# --- SOLICITAÇÃO 4: Botão de Recarregar ---
+if st.sidebar.button("🔄 Recarregar Dados"):
+    st.cache_data.clear()
+    st.rerun()
+
 def obter_limites_data(coluna):
     if coluna in df_original.columns:
         datas_validas = df_original[coluna].dropna()
@@ -353,7 +373,6 @@ else:
             fig_tempo = px.area(df_tempo, x='Mes_Ano_Faturamento', y='Valor_Faturamento', title='Evolução por Mês/Ano', markers=True, text='Valor_Texto', color_discrete_sequence=['#2ecc71'])
             fig_tempo.update_traces(line_shape='spline', textposition='top center', textfont=dict(color='white', size=12))
             fig_tempo = aplicar_estilo_grafico(fig_tempo)
-            # Garante que o eixo X siga a ordem cronológica
             fig_tempo.update_xaxes(type='category', categoryorder='array', categoryarray=df_tempo['Mes_Ano_Faturamento'])
             evento_tempo = st.plotly_chart(fig_tempo, use_container_width=True, on_select="rerun")
 
@@ -371,12 +390,12 @@ else:
             evento_carteira = st.plotly_chart(fig_carteira, use_container_width=True, on_select="rerun")
 
     # ----------------------------------------------------
-    # 5. TABELA DE DETALHAMENTO (Com Cross-Filtering)
+    # 5. TABELA DE DETALHAMENTO
     # ----------------------------------------------------
     st.markdown("### 📋 Tabela de Dados")
     df_exibicao = df_filtrado.copy()
     
-    # Captura seleções dos gráficos
+    # Captura seleções para Cross-Filtering
     clientes_sel = [pt['y'] for pt in evento_cliente.selection.get('points', [])] if evento_cliente and evento_cliente.selection else []
     rests_sel = [pt['y'] for pt in evento_rest.selection.get('points', [])] if evento_rest and evento_rest.selection else []
     meses_sel = [pt['x'] for pt in evento_tempo.selection.get('points', [])] if evento_tempo and evento_tempo.selection else []
@@ -411,9 +430,33 @@ else:
 
     df_exibicao = df_exibicao[cols]
 
-    # CONFIGURAÇÃO DE COLUNAS: Formata Moeda BR e Datas sem quebrar a ordenação
+    # --- SOLICITAÇÃO 2 e 3: Botões de Ação Profissionais ---
+    col_btn1, col_btn2, col_btn3, col_btn4 = st.columns([2, 2, 2, 4])
+    
+    with col_btn1:
+        # Exportar para Excel
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df_exibicao.to_excel(writer, index=False, sheet_name='Faturamento')
+        st.download_button(
+            label="📥 Exportar Excel",
+            data=output.getvalue(),
+            file_name=f"faturamento_{datetime.date.today()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    with col_btn2:
+        # PDF da Página Completa
+        st.button("📄 PDF Página", on_click=lambda: st.components.v1.html("<script>window.print();</script>", height=0))
+
+    with col_btn3:
+        # PDF da Tabela (Instrução Profissional)
+        if st.button("📋 PDF Tabela"):
+            st.info("Para salvar apenas a tabela: Clique em 'Exportar Excel' ou use Ctrl+P e selecione 'Apenas Seleção'.")
+
+    # --- SOLICITAÇÃO 1: Formato de Moeda R$ 78.282,02 ---
     config_colunas = {
-        "Valor_Faturamento": st.column_config.NumberColumn("Valor Faturamento", format="R$ %.2f"),
+        "Valor_Faturamento": st.column_config.NumberColumn("Valor Faturamento", format="R$ %.2f", width="medium"),
         "Fim_Medição": st.column_config.DateColumn("Fim Medição", format="DD/MM/YYYY"),
         "Data_Faturamento": st.column_config.DateColumn("Data Faturamento", format="DD/MM/YYYY"),
         col_venc: st.column_config.DateColumn("Data Vencimento", format="DD/MM/YYYY"),
