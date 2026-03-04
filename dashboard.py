@@ -441,7 +441,6 @@ else:
 
     with col_btn2:
         def gerar_pdf_fpdf(df_input):
-            # Import interno para garantir que a biblioteca seja chamada apenas no clique
             from fpdf import FPDF
             
             # Criar objeto PDF (L = Paisagem)
@@ -451,7 +450,7 @@ else:
             pdf.cell(0, 10, "Relatorio de Faturamento", ln=True, align='C')
             pdf.ln(5)
             
-            # Seleciona colunas que cabem no PDF
+            # Seleciona as colunas principais
             cols_print = df_input.columns.tolist()[:10]
             
             # Cabeçalho
@@ -460,28 +459,28 @@ else:
                 pdf.cell(27, 8, str(col)[:15], 1, 0, 'C')
             pdf.ln()
             
-            # Dados
+            # Dados (Limitar a 200 linhas)
             pdf.set_font("Arial", size=7)
             for _, row in df_input.head(200).iterrows():
                 for col in cols_print:
-                    # Limpa o valor para string simples para evitar erro de caractere no PDF
+                    # Trata caracteres especiais para evitar erro de encoding
                     val = str(row[col]).encode('latin-1', 'ignore').decode('latin-1')
                     pdf.cell(27, 6, val[:18], 1)
                 pdf.ln()
-            return pdf.output()
+            
+            # O SEGREDO: Converter bytearray para bytes
+            return bytes(pdf.output())
 
         try:
-            # Gerar o PDF e criar o botão de download nativo
             pdf_bytes = gerar_pdf_fpdf(df_exibicao)
             st.download_button(
                 label="📋 PDF Tabela",
                 data=pdf_bytes,
                 file_name=f"faturamento_{datetime.date.today()}.pdf",
                 mime="application/pdf",
-                key="btn_pdf_faturamento"
+                key="btn_pdf_final"
             )
         except Exception as e:
-            # Isso vai nos mostrar o erro real se a biblioteca ainda não subiu
             st.error(f"Erro ao gerar: {e}")
 
     # --- TABELA VISUAL (Indentada corretamente com 4 espaços) ---
