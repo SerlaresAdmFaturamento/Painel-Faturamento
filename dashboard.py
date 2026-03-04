@@ -439,33 +439,12 @@ else:
         except Exception as e:
             st.error(f"Erro Excel: {e}")
 
-    # --- BOTÕES DE AÇÃO ---
-    col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 6])
-    
-    with col_btn1:
-        # Exportar Excel
-        try:
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df_exibicao.to_excel(writer, index=False, sheet_name='Faturamento')
-            st.download_button(
-                label="📥 Exportar Excel",
-                data=output.getvalue(),
-                file_name=f"faturamento_{datetime.date.today()}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        except Exception as e:
-            st.error(f"Erro Excel: {e}")
-
     with col_btn2:
-        def gerar_pdf_profissional_dinamico(df_input):
+        def gerar_pdf_profissional(df_input):
             from fpdf import FPDF
             
-            # 1. Colunas que o usuário deseja (pode estar em qualquer ordem)
-            colunas_permitidas = ["Restaurante", "Cliente", "Inicio_Medição", "Fim_Medição", "Período_Medição", "Prazo", "Dia"]
-            
-            # 2. Mapeamento para nomes amigáveis no PDF
-            mapeamento_nomes = {
+            # 1. Definir o mapeamento de nomes (De: Nome no código -> Para: Nome no PDF)
+            mapeamento_colunas = {
                 "Restaurante": "Restaurante",
                 "Cliente": "Cliente",
                 "Inicio_Medição": "Inicio Medição",
@@ -474,17 +453,12 @@ else:
                 "Prazo": "Prazo de Vencimento",
                 "Dia": "Dia de Vencimento"
             }
-
-            # 3. PEGAR A ORDEM ATUAL: Filtra as colunas permitidas baseando-se na ordem que aparecem no df_input
-            cols_na_ordem = [c for c in df_input.columns if c in colunas_permitidas]
             
-            # Se por algum motivo a lista for vazia (ex: colunas renomeadas), usa as permitidas que existirem
-            if not cols_na_ordem:
-                cols_na_ordem = [c for c in colunas_permitidas if c in df_input.columns]
+            # Filtrar apenas as colunas que existem
+            cols_originais = [c for c in mapeamento_colunas.keys() if c in df_input.columns]
+            df_pdf = df_input[cols_originais].copy().head(200)
 
-            df_pdf = df_input[cols_na_ordem].copy().head(200)
-
-            # 4. Formatar DATAS para o padrão brasileiro
+            # 2. Formatar as DATAS para o padrão brasileiro (DD/MM/YYYY)
             for col_data in ["Inicio_Medição", "Fim_Medição"]:
                 if col_data in df_pdf.columns:
                     df_pdf[col_data] = pd.to_datetime(df_pdf[col_data]).dt.strftime('%d/%m/%Y')
@@ -507,12 +481,22 @@ else:
             pdf.set_fill_color(52, 152, 219)
             pdf.set_text_color(255, 255, 255)
             
-            largura_util = 275
-            largura_col = largura_util / len(cols_na_ordem) if cols_na_ordem else 30
+            # Definir larguras específicas para caber os nomes maiores
+            # Total largura A4 Paisagem útil aprox 280mm
+            larguras = {
+                "Restaurante": 35,
+                "Cliente": 60,
+                "Inicio_Medição": 30,
+                "Fim_Medição": 30,
+                "Período_Medição": 45,
+                "Prazo": 40,
+                "Dia": 40
+            }
             
-            for col in cols_na_ordem:
-                nome_cabecalho = mapeamento_nomes.get(col, col)
-                pdf.cell(largura_col, 10, nome_cabecalho, 1, 0, 'C', True)
+            for col in cols_originais:
+                largura = larguras.get(col, 30)
+                nome_exibicao = mapeamento_colunas[col]
+                pdf.cell(largura, 10, nome_exibicao, 1, 0, 'C', True)
             pdf.ln()
 
             # --- DADOS (ZEBRADOS) ---
@@ -520,23 +504,29 @@ else:
             pdf.set_text_color(0, 0, 0)
             
             for i, (_, row) in enumerate(df_pdf.iterrows()):
-                pdf.set_fill_color(245, 245, 245) if i % 2 == 0 else pdf.set_fill_color(255, 255, 255)
-                for col in cols_na_ordem:
+                if i % 2 == 0:
+                    pdf.set_fill_color(245, 245, 245)
+                else:
+                    pdf.set_fill_color(255, 255, 255)
+                
+                for col in cols_originais:
+                    largura = larguras.get(col, 30)
+                    # Trata o texto para evitar erros de caracteres e remove o .0 de números se houver
                     valor = str(row[col]).replace('.0', '')
                     texto = valor.encode('latin-1', 'ignore').decode('latin-1')
-                    pdf.cell(largura_col, 8, texto[:25], 1, 0, 'C', True)
+                    pdf.cell(largura, 8, texto[:25], 1, 0, 'C', True)
                 pdf.ln()
 
             return bytes(pdf.output())
 
         try:
-            pdf_bytes = gerar_pdf_profissional_dinamico(df_exibicao)
+            pdf_bytes = gerar_pdf_profissional(df_exibicao)
             st.download_button(
                 label="📋 PDF Profissional",
                 data=pdf_bytes,
                 file_name=f"relatorio_faturamento_{datetime.date.today()}.pdf",
                 mime="application/pdf",
-                key="btn_pdf_dynamic_final"
+                key="btn_pdf_pro_final"
             )
         except Exception as e:
             st.error(f"Erro ao gerar PDF: {e}")
